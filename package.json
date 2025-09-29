@@ -1,5 +1,4 @@
 {
-  "homepage": "https://nithyasri.github.io/Visa_app",
   "name": "visa-management-app",
   "private": true,
   "version": "0.0.0",
@@ -11,8 +10,8 @@
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "server": "node server/index.js",
-     "predeploy": "npm run build",
-  "deploy": "gh-pages -d dist"
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
   },
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
