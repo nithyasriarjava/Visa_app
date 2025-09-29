@@ -1,12 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
+import { supabase } from '../components/supabaseClient'
 
 const AuthContext = createContext()
 
 export const useAuth = () => {
   const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider')
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider')
   return context
 }
 
@@ -15,100 +14,107 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('currentUser')
-    if (savedUser) {
-      setUser(JSON.parse(savedUser))
+    const getSession = async () => {
+      const { data } = await supabase.auth.getSession()
+      if (data.session?.user) {
+        const supabaseUser = {
+          id: data.session.user.id,
+          email: data.session.user.email,
+          firstName: data.session.user.user_metadata?.first_name || data.session.user.email.split('@')[0],
+          lastName: data.session.user.user_metadata?.last_name || '',
+          role: 'user'
+        }
+        setUser(supabaseUser)
+      }
+      setLoading(false)
     }
-    setLoading(false)
+    getSession()
+    const { subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        const supabaseUser = {
+          id: session.user.id,
+          email: session.user.email,
+          firstName: session.user.user_metadata?.first_name || session.user.email.split('@')[0],
+          lastName: session.user.user_metadata?.last_name || '',
+          role: 'user'
+        }
+        setUser(supabaseUser)
+      } else {
+        setUser(null)
+      }
+    })
+    return () => subscription?.unsubscribe()
   }, [])
 
-  const login = async (email, googleUserInfo = null) => {
-    try {
-      // Get registered users
-      const users = JSON.parse(localStorage.getItem('users') || '[]')
-      const foundUser = users.find(u => u.email === email)
-      
-      // Check if email is registered
-      if (!foundUser) {
-        return { 
-          success: false, 
-          error: `Email "${email}" is not registered. Please create an account first with this email address.` 
+  const login = async (email, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) return { success: false, error: error.message }
+    setUser(data.user)
+    return { success: true }
+  }
+
+  const register = async (email, password) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: window.location.origin }
+    })
+    if (error) return { success: false, error: error.message }
+    setUser(data.user)
+    return { success: true }
+  }
+
+  const loginWithGoogle = async () => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { 
+        redirectTo: window.location.origin,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'select_account consent'
         }
       }
-
-      // Create authenticated user with Google info
-      const authenticatedUser = {
-        ...foundUser,
-        firstName: googleUserInfo?.firstName || foundUser.firstName,
-        lastName: googleUserInfo?.lastName || foundUser.lastName,
-        picture: googleUserInfo?.picture || null,
-        googleId: googleUserInfo?.googleId || null,
-        authMethod: 'google',
-        lastLogin: new Date().toISOString()
-      }
-
-      // Save authenticated user
-      setUser(authenticatedUser)
-      localStorage.setItem('currentUser', JSON.stringify(authenticatedUser))
-      
-      return { success: true }
-    } catch (error) {
-      console.error('Login error:', error)
-      return { success: false, error: 'Authentication failed. Please try again.' }
-    }
+    })
+    if (error) return { success: false, error: error.message }
+    return { success: true }
   }
 
-  const register = async (userData) => {
+  const logout = async () => {
     try {
-      const users = JSON.parse(localStorage.getItem('users') || '[]')
+      // Sign out from Supabase
+      await supabase.auth.signOut({ scope: 'global' })
+      setUser(null)
       
-      // Check if user already exists
-      const existingUser = users.find(u => u.email === userData.email)
-      if (existingUser) {
-        return { success: false, error: 'An account with this email already exists.' }
-      }
-
-      // Create new user
-      const newUser = {
-        id: Date.now().toString(),
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        email: userData.email,
-        role: 'user',
-        createdAt: new Date().toISOString(),
-        hasCompletedProfile: false
-      }
-
-      // Save to users list
-      users.push(newUser)
-      localStorage.setItem('users', JSON.stringify(users))
-
-      // Auto-login after registration
-      setUser(newUser)
-      localStorage.setItem('currentUser', JSON.stringify(newUser))
-
-      return { success: true }
+      // Clear all localStorage data
+      localStorage.clear()
+      
+      // Clear session storage
+      sessionStorage.clear()
+      
+      // Clear any Google auth cookies by redirecting to Google logout
+      const googleLogoutUrl = 'https://accounts.google.com/logout'
+      
+      // Open Google logout in hidden iframe to clear Google session
+      const iframe = document.createElement('iframe')
+      iframe.style.display = 'none'
+      iframe.src = googleLogoutUrl
+      document.body.appendChild(iframe)
+      
+      setTimeout(() => {
+        document.body.removeChild(iframe)
+        // Force page reload to clear all state
+        window.location.href = '/'
+      }, 1000)
+      
     } catch (error) {
-      console.error('Registration error:', error)
-      return { success: false, error: 'Registration failed. Please try again.' }
+      console.error('Logout error:', error)
+      // Force reload even if logout fails
+      window.location.href = '/'
     }
-  }
-
-  const logout = () => {
-    setUser(null)
-    localStorage.removeItem('currentUser')
-  }
-
-  const value = {
-    user,
-    login,
-    register,
-    logout,
-    loading
   }
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{ user, login, register, loginWithGoogle, logout, loading }}>
       {children}
     </AuthContext.Provider>
   )
