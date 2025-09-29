@@ -94,7 +94,7 @@ const Register = ({ setIsLogin }) => {
         
         alert('✅ Account created successfully in Supabase Auth!')
         setFormData({ email: '', password: '' })
-        setIsLogin(true)
+        window.location.href = '/'
       } else {
         console.log('⚠️ No error but no user data returned')
         setError('Signup failed - no user data returned')

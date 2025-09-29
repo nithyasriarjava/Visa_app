@@ -76,7 +76,7 @@ const Login = ({ setIsLogin }) => {
             localStorage.setItem('currentUser', JSON.stringify(userSession))
             
             alert('✅ Login successful!')
-            window.location.reload()
+            window.location.href = '/'
             return
           }
         }
@@ -86,6 +86,7 @@ const Login = ({ setIsLogin }) => {
       } else if (data.session && data.user) {
         console.log('✅ Login successful! User:', data.user.email)
         alert('✅ Login successful!')
+        window.location.href = '/'
       } else {
         setError('❌ Login failed - no session created')
       }
