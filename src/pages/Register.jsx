@@ -94,7 +94,7 @@ const Register = ({ setIsLogin }) => {
         
         alert('✅ Account created successfully in Supabase Auth!')
         setFormData({ email: '', password: '' })
-        window.location.href = '/'
+        // AuthContext will automatically detect the new user and navigate
       } else {
         console.log('⚠️ No error but no user data returned')
         setError('Signup failed - no user data returned')

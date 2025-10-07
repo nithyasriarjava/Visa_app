@@ -75,8 +75,11 @@ const Login = ({ setIsLogin }) => {
             }
             localStorage.setItem('currentUser', JSON.stringify(userSession))
             
-            alert('✅ Login successful!')
-            window.location.href = '/'
+            // Update auth context state to trigger navigation
+            const authResult = await login(formData.email, formData.password)
+            if (authResult.success) {
+              alert('✅ Login successful!')
+            }
             return
           }
         }
@@ -86,7 +89,7 @@ const Login = ({ setIsLogin }) => {
       } else if (data.session && data.user) {
         console.log('✅ Login successful! User:', data.user.email)
         alert('✅ Login successful!')
-        window.location.href = '/'
+        // AuthContext will automatically update user state
       } else {
         setError('❌ Login failed - no session created')
       }

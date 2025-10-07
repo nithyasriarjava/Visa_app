@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import Layout from './components/Layout'
 import Login from './pages/Login'
@@ -12,7 +13,6 @@ import './App.css'
 const AppContent = () => {
   const { user, loading } = useAuth()
   const [isLogin, setIsLogin] = useState(true)
-  const [activeTab, setActiveTab] = useState('profile')
 
   if (loading) {
     return (
@@ -37,24 +37,15 @@ const AppContent = () => {
     )
   }
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'profile':
-        return <Profile />
-      case 'visa-apply':
-        return <VisaApply />
-      case 'api-test':
-        return <ApiTest />
-      case 'admin':
-        return user.role === 'admin' ? <AdminDashboard /> : <Profile />
-      default:
-        return <Profile />
-    }
-  }
-
   return (
-    <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
-      {renderContent()}
+    <Layout>
+      <Routes>
+        <Route path="/" element={<Navigate to="/profile" replace />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/visa-apply" element={<VisaApply />} />
+        <Route path="/api-test" element={<ApiTest />} />
+        <Route path="/admin" element={user.role === 'admin' ? <AdminDashboard /> : <Navigate to="/profile" replace />} />
+      </Routes>
     </Layout>
   )
 }
@@ -62,7 +53,9 @@ const AppContent = () => {
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <Router>
+        <AppContent />
+      </Router>
     </AuthProvider>
   )
 }

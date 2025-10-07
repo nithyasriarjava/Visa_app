@@ -37,9 +37,22 @@ const VisaApply = () => {
     if (!addressDetails.city.trim()) newErrors.city = 'City is required'
     else if (!/^[a-zA-Z\s]+$/.test(addressDetails.city)) newErrors.city = 'City should contain only letters'
     if (!addressDetails.state.trim()) newErrors.state = 'State is required'
-    else if (!/^[a-zA-Z\s]+$/.test(addressDetails.state)) newErrors.state = 'State should contain only letters'
-    if (!addressDetails.zip.trim()) newErrors.zip = 'ZIP code is required'
-    else if (!/^\d{5}(-\d{4})?$/.test(addressDetails.zip)) newErrors.zip = 'Invalid ZIP code format'
+    if (!addressDetails.zip.trim()) newErrors.zip = 'ZIP/Postal code is required'
+    else {
+      const isUSState = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming', 'District of Columbia', 'Puerto Rico', 'US Virgin Islands', 'American Samoa', 'Guam', 'Northern Mariana Islands'].includes(addressDetails.state)
+      
+      if (isUSState) {
+        // US ZIP code: 5 digits or 5+4 format
+        if (!/^\d{5}(-\d{4})?$/.test(addressDetails.zip)) {
+          newErrors.zip = 'US ZIP code must be 5 digits (12345) or 9 digits (12345-6789)'
+        }
+      } else {
+        // Indian PIN code: 6 digits
+        if (!/^\d{6}$/.test(addressDetails.zip)) {
+          newErrors.zip = 'Indian PIN code must be 6 digits (123456)'
+        }
+      }
+    }
 
     return newErrors
   }
@@ -105,8 +118,20 @@ const VisaApply = () => {
   })
 
   useEffect(() => {
-    // Check if user has existing visa data
-    fetchExistingData()
+    // Check if we're in editing mode
+    const editingData = localStorage.getItem('editingPersonData')
+    if (editingData) {
+      const personData = JSON.parse(editingData)
+      setPersonalDetails(personData.personalDetails || personalDetails)
+      setAddressDetails(personData.addressDetails || addressDetails)
+      setH1bDetails(personData.h1bDetails || h1bDetails)
+      setExistingData({ isEditing: true })
+    } else {
+      // Clear any leftover editing data and ensure fresh form
+      localStorage.removeItem('editingPersonData')
+      localStorage.removeItem('editingPersonIndex')
+      fetchExistingData()
+    }
   }, [user])
 
   const fetchExistingData = async () => {
@@ -174,7 +199,21 @@ const VisaApply = () => {
     
     // Get existing applications or create new array
     const existingApplications = JSON.parse(localStorage.getItem('allVisaApplications') || '[]')
-    existingApplications.push(visaApplicationData)
+    
+    // Check if we're editing an existing person
+    const editingIndex = localStorage.getItem('editingPersonIndex')
+    if (editingIndex !== null) {
+      // Update existing application
+      existingApplications[parseInt(editingIndex)] = visaApplicationData
+      localStorage.removeItem('editingPersonData')
+      localStorage.removeItem('editingPersonIndex')
+      setMessage('✅ Application updated successfully! Receipt Number: ' + h1bDetails.receiptNumber + '. Redirecting to profile...')
+    } else {
+      // Add new application
+      existingApplications.push(visaApplicationData)
+      setMessage('✅ Visa application submitted successfully! Receipt Number: ' + h1bDetails.receiptNumber + '. Redirecting to dashboard...')
+    }
+    
     localStorage.setItem('allVisaApplications', JSON.stringify(existingApplications))
     
     // Also store current user's latest application
@@ -509,15 +548,109 @@ const VisaApply = () => {
                 {errors.city && <div style={errorStyle}>{errors.city}</div>}
               </div>
               <div>
-                <label style={{ display: 'block', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>
+                <label style={{ display: 'block', fontWeight: '600', color: 'white', marginBottom: '8px' }}>
                   State
                 </label>
-                <input
+                <select
                   style={inputStyle(errors.state)}
                   value={addressDetails.state}
                   onChange={(e) => setAddressDetails({ ...addressDetails, state: e.target.value })}
                   required
-                />
+                >
+                  <option value="">Select State</option>
+                  <option value="Alabama">Alabama</option>
+                  <option value="Alaska">Alaska</option>
+                  <option value="Arizona">Arizona</option>
+                  <option value="Arkansas">Arkansas</option>
+                  <option value="California">California</option>
+                  <option value="Colorado">Colorado</option>
+                  <option value="Connecticut">Connecticut</option>
+                  <option value="Delaware">Delaware</option>
+                  <option value="Florida">Florida</option>
+                  <option value="Georgia">Georgia</option>
+                  <option value="Hawaii">Hawaii</option>
+                  <option value="Idaho">Idaho</option>
+                  <option value="Illinois">Illinois</option>
+                  <option value="Indiana">Indiana</option>
+                  <option value="Iowa">Iowa</option>
+                  <option value="Kansas">Kansas</option>
+                  <option value="Kentucky">Kentucky</option>
+                  <option value="Louisiana">Louisiana</option>
+                  <option value="Maine">Maine</option>
+                  <option value="Maryland">Maryland</option>
+                  <option value="Massachusetts">Massachusetts</option>
+                  <option value="Michigan">Michigan</option>
+                  <option value="Minnesota">Minnesota</option>
+                  <option value="Mississippi">Mississippi</option>
+                  <option value="Missouri">Missouri</option>
+                  <option value="Montana">Montana</option>
+                  <option value="Nebraska">Nebraska</option>
+                  <option value="Nevada">Nevada</option>
+                  <option value="New Hampshire">New Hampshire</option>
+                  <option value="New Jersey">New Jersey</option>
+                  <option value="New Mexico">New Mexico</option>
+                  <option value="New York">New York</option>
+                  <option value="North Carolina">North Carolina</option>
+                  <option value="North Dakota">North Dakota</option>
+                  <option value="Ohio">Ohio</option>
+                  <option value="Oklahoma">Oklahoma</option>
+                  <option value="Oregon">Oregon</option>
+                  <option value="Pennsylvania">Pennsylvania</option>
+                  <option value="Rhode Island">Rhode Island</option>
+                  <option value="South Carolina">South Carolina</option>
+                  <option value="South Dakota">South Dakota</option>
+                  <option value="Tennessee">Tennessee</option>
+                  <option value="Texas">Texas</option>
+                  <option value="Utah">Utah</option>
+                  <option value="Vermont">Vermont</option>
+                  <option value="Virginia">Virginia</option>
+                  <option value="Washington">Washington</option>
+                  <option value="West Virginia">West Virginia</option>
+                  <option value="Wisconsin">Wisconsin</option>
+                  <option value="Wyoming">Wyoming</option>
+                  <option value="District of Columbia">District of Columbia</option>
+                  <option value="Puerto Rico">Puerto Rico</option>
+                  <option value="US Virgin Islands">US Virgin Islands</option>
+                  <option value="American Samoa">American Samoa</option>
+                  <option value="Guam">Guam</option>
+                  <option value="Northern Mariana Islands">Northern Mariana Islands</option>
+                  <option value="Andhra Pradesh">Andhra Pradesh</option>
+                  <option value="Arunachal Pradesh">Arunachal Pradesh</option>
+                  <option value="Assam">Assam</option>
+                  <option value="Bihar">Bihar</option>
+                  <option value="Chhattisgarh">Chhattisgarh</option>
+                  <option value="Goa">Goa</option>
+                  <option value="Gujarat">Gujarat</option>
+                  <option value="Haryana">Haryana</option>
+                  <option value="Himachal Pradesh">Himachal Pradesh</option>
+                  <option value="Jharkhand">Jharkhand</option>
+                  <option value="Karnataka">Karnataka</option>
+                  <option value="Kerala">Kerala</option>
+                  <option value="Madhya Pradesh">Madhya Pradesh</option>
+                  <option value="Maharashtra">Maharashtra</option>
+                  <option value="Manipur">Manipur</option>
+                  <option value="Meghalaya">Meghalaya</option>
+                  <option value="Mizoram">Mizoram</option>
+                  <option value="Nagaland">Nagaland</option>
+                  <option value="Odisha">Odisha</option>
+                  <option value="Punjab">Punjab</option>
+                  <option value="Rajasthan">Rajasthan</option>
+                  <option value="Sikkim">Sikkim</option>
+                  <option value="Tamil Nadu">Tamil Nadu</option>
+                  <option value="Telangana">Telangana</option>
+                  <option value="Tripura">Tripura</option>
+                  <option value="Uttar Pradesh">Uttar Pradesh</option>
+                  <option value="Uttarakhand">Uttarakhand</option>
+                  <option value="West Bengal">West Bengal</option>
+                  <option value="Andaman and Nicobar Islands">Andaman and Nicobar Islands</option>
+                  <option value="Chandigarh">Chandigarh</option>
+                  <option value="Dadra and Nagar Haveli and Daman and Diu">Dadra and Nagar Haveli and Daman and Diu</option>
+                  <option value="Delhi">Delhi</option>
+                  <option value="Jammu and Kashmir">Jammu and Kashmir</option>
+                  <option value="Ladakh">Ladakh</option>
+                  <option value="Lakshadweep">Lakshadweep</option>
+                  <option value="Puducherry">Puducherry</option>
+                </select>
                 {errors.state && <div style={errorStyle}>{errors.state}</div>}
               </div>
               <div>
@@ -528,7 +661,7 @@ const VisaApply = () => {
                   style={inputStyle(errors.zip)}
                   value={addressDetails.zip}
                   onChange={(e) => setAddressDetails({ ...addressDetails, zip: e.target.value })}
-                  placeholder="12345 or 12345-6789"
+                  placeholder={addressDetails.state && ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming', 'District of Columbia', 'Puerto Rico', 'US Virgin Islands', 'American Samoa', 'Guam', 'Northern Mariana Islands'].includes(addressDetails.state) ? '12345 or 12345-6789' : '123456'}
                   required
                 />
                 {errors.zip && <div style={errorStyle}>{errors.zip}</div>}

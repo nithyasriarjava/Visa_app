@@ -1,9 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { Button } from './ui/Button'
 import { User, FileText, Shield, LogOut, Home, Bell, Menu, ChevronLeft, X } from 'lucide-react'
 
-const Layout = ({ children, activeTab, setActiveTab }) => {
+const Layout = ({ children }) => {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const activeTab = location.pathname.slice(1) || 'profile'
   const { user, logout } = useAuth()
   const [showNotifications, setShowNotifications] = useState(false)
   const [sidebarExpanded, setSidebarExpanded] = useState(window.innerWidth > 768)
@@ -212,7 +216,13 @@ const Layout = ({ children, activeTab, setActiveTab }) => {
             return (
               <div
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => {
+                  if (item.id === 'visa-apply') {
+                    localStorage.removeItem('editingPersonData')
+                    localStorage.removeItem('editingPersonIndex')
+                  }
+                  navigate(`/${item.id}`)
+                }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
