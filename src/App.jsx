@@ -53,7 +53,7 @@ const AppContent = () => {
 function App() {
   return (
     <AuthProvider>
-      <Router>
+       <Router basename="/Visa_app">
         <AppContent />
       </Router>
     </AuthProvider>
