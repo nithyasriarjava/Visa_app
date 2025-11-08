@@ -11,7 +11,7 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  //  base: '/Visa_app/',
+   base: '/Visa_app/',
   build: {
     rollupOptions: {
       output: {
