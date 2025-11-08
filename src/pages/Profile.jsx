@@ -1,810 +1,423 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { calculateDaysRemaining, formatDate } from '../lib/utils'
-import { Calendar, Clock, AlertTriangle, User, MapPin, Building, CheckCircle, XCircle } from 'lucide-react'
+import { User, XCircle, Edit, Trash2 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import axios from 'axios'
 
 const Profile = () => {
-  const navigate = useNavigate()
   const { user } = useAuth()
-  const [visaData, setVisaData] = useState(null)
-  const [allApplications, setAllApplications] = useState([])
-  const [selectedPerson, setSelectedPerson] = useState(null)
+  const navigate = useNavigate()
+  const [customerData, setCustomerData] = useState([])
+  const [expandedUserId, setExpandedUserId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [personToDelete, setPersonToDelete] = useState(null)
-
-  const handleEditPerson = (index) => {
-    const personData = allApplications[index]
-    localStorage.setItem('editingPersonData', JSON.stringify(personData))
-    localStorage.setItem('editingPersonIndex', index.toString())
-    navigate('/visa-apply')
-  }
+  const [customerToDelete, setCustomerToDelete] = useState(null)
+  const [message, setMessage] = useState('')
 
   useEffect(() => {
-    if (user) {
-      fetchVisaData()
-      checkExpiryAndSendEmails()
+    if (user?.email) {
+      fetchCustomerData()
     }
-  }, [user])
+  }, [user?.email])
 
-  const handleDelete = () => {
-    if (personToDelete !== null) {
-      const updatedApps = allApplications.filter((_, i) => i !== personToDelete)
-      setAllApplications(updatedApps)
-      localStorage.setItem('allVisaApplications', JSON.stringify(updatedApps))
-      if (selectedPerson === personToDelete) {
-        setSelectedPerson(null)
-        setVisaData(null)
-      }
-      setShowDeleteModal(false)
-      setPersonToDelete(null)
-    }
-  }
-
-  const checkExpiryAndSendEmails = () => {
-    const allAppsData = localStorage.getItem('allVisaApplications')
-    if (allAppsData) {
-      const parsedApps = JSON.parse(allAppsData)
-
-      parsedApps.forEach((app, index) => {
-        if (app.h1bDetails && app.h1bDetails.endDate) {
-          const daysLeft = calculateDaysRemaining(app.h1bDetails.endDate)
-          const email = app.personalDetails.email
-          const name = `${app.personalDetails.firstName} ${app.personalDetails.lastName}`
-
-          if (daysLeft === 10) {
-            sendExpiryEmail(email, name, daysLeft, '10-day warning')
-          } else if (daysLeft === 3) {
-            sendExpiryEmail(email, name, daysLeft, 'Critical 3-day alert')
-          } else if (daysLeft === 2) {
-            sendExpiryEmail(email, name, daysLeft, 'Critical 2-day alert')
-          } else if (daysLeft === 1) {
-            sendExpiryEmail(email, name, daysLeft, 'Final 1-day alert')
-          }
-        }
-      })
-    }
-  }
-
-  const sendExpiryEmail = async (email, name, daysLeft, alertType) => {
-    console.log(`🔄 Attempting to send email to: ${email}, For person: ${name}, Days left: ${daysLeft}`)
-
+  const fetchCustomerData = async () => {
     try {
-      const emailData = {
-        email: email,
-        name: name,
-        subject: `Visa Expiry Alert - ${daysLeft} days remaining`,
-        message: `Dear ${name}, This is a ${alertType} for your H1B visa. Your visa will expire in ${daysLeft} days. Please take necessary action to renew or extend your visa. Best regards, Visa Management System`,
-        days_remaining: daysLeft,
-        alert_type: alertType
+      console.log('Fetching customer data for email:', user?.email)
+      if (!user?.email) {
+        setCustomerData([])
+        setLoading(false)
+        return
       }
-
-      console.log('📧 Sending email with data:', emailData)
-
-      const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
-        method: 'POST',
+      
+      const response = await axios.get(`https://visa-app-1-q9ex.onrender.com/h1b_customer/by_login_email/${user.email}`, {
         headers: {
           'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          service_id: 'service_lxn4iei',
-          template_id: 'template_qaxmqnn',
-          user_id: 'LEBiZ-gpuLn6UvJ5y',
-          template_params: {
-            to_email: email,
-            to_name: name,
-            days_remaining: daysLeft
-          }
-        })
-      })
-
-      if (response.ok) {
-        const emailLog = {
-          to_email: email,
-          to_name: name,
-          sentAt: new Date().toISOString(),
-          status: 'sent',
-          daysRemaining: daysLeft,
-          service: 'emailjs_api'
         }
-
-        const emailLogs = JSON.parse(localStorage.getItem('emailLogs') || '[]')
-        emailLogs.push(emailLog)
-        localStorage.setItem('emailLogs', JSON.stringify(emailLogs))
-
-        console.log(`✅ Email successfully sent to ${email}`)
-      } else {
-        throw new Error(`Failed to send email: ${response.status}`)
+      })
+      
+      console.log('API Response received:', response.data)
+      
+      let customerArray = []
+      if (response.data) {
+        if (Array.isArray(response.data)) {
+          customerArray = response.data
+        } else {
+          customerArray = [response.data]
+        }
       }
-
+      
+      // Filter out soft-deleted records (is_deleted = true or deleted_at is not null)
+      const activeCustomers = customerArray.filter(customer => 
+        !customer.is_deleted && 
+        !customer.deleted_at && 
+        customer.deleted_at !== true
+      )
+      
+      setCustomerData(activeCustomers)
+      setLoading(false)
     } catch (error) {
-      console.error('❌ Email Error:', error)
-
-      const emailLog = {
-        to_email: email,
-        to_name: name,
-        sentAt: new Date().toISOString(),
-        status: 'failed',
-        error: error.message,
-        daysRemaining: daysLeft,
-        service: 'mailto'
-      }
-
-      const emailLogs = JSON.parse(localStorage.getItem('emailLogs') || '[]')
-      emailLogs.push(emailLog)
-      localStorage.setItem('emailLogs', JSON.stringify(emailLogs))
-
-      console.log(`❌ Email failed for ${email}:`, error.message)
-    }
-  }
-
-  const fetchVisaData = async () => {
-    try {
-      console.log('All localStorage keys:', Object.keys(localStorage))
-      console.log('localStorage allVisaApplications:', localStorage.getItem('allVisaApplications'))
-
-      const allAppsData = localStorage.getItem('allVisaApplications')
-      if (allAppsData) {
-        const parsedApps = JSON.parse(allAppsData)
-        setAllApplications(parsedApps)
-        console.log('✅ All applications loaded:', parsedApps)
-        console.log('Current user email:', user?.email)
-      } else {
-        console.log('No applications found - this is normal for new users')
-        setAllApplications([])
-      }
-    } catch (error) {
-      console.error('Error loading data:', error)
-    } finally {
+      console.error('Error fetching customer data:', error)
+      setCustomerData([])
       setLoading(false)
     }
   }
 
+  const handleEdit = (customer, e) => {
+    e.stopPropagation()
+    const editData = {
+      personalDetails: {
+        firstName: customer.first_name || '',
+        lastName: customer.last_name || '',
+        dateOfBirth: customer.dob || '',
+        sex: customer.sex || '',
+        maritalStatus: customer.marital_status || '',
+        phone: customer.phone || '',
+        email: customer.email || '',
+        emergencyContactName: customer.emergency_contact_name || '',
+        emergencyContactPhone: customer.emergency_contact_phone || '',
+        employmentStartDate: customer.employment_start_date || ''
+      },
+      addressDetails: {
+        streetName: customer.street_name || '',
+        city: customer.city || '',
+        state: customer.state || '',
+        zip: customer.zip || ''
+      },
+      h1bDetails: {
+        clientName: customer.client_name || '',
+        clientStreet: customer.client_street_name || '',
+        clientCity: customer.client_city || '',
+        clientState: customer.client_state || '',
+        clientZip: customer.client_zip || '',
+        lcaTitle: customer.lca_title || '',
+        lcaSalary: customer.lca_salary || '',
+        lcaCode: customer.lca_code || '',
+        receiptNumber: customer.receipt_number || '',
+        startDate: customer.h1b_start_date || '',
+        endDate: customer.h1b_end_date || ''
+      },
+      customerId: customer.customer_id || customer.id
+    }
+    localStorage.setItem('editingPersonData', JSON.stringify(editData))
+    navigate('/visa-apply')
+  }
+
+  const handleDelete = (customer, e) => {
+    e.stopPropagation()
+    setCustomerToDelete(customer)
+    setShowDeleteModal(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!customerToDelete) return
+    
+    try {
+      const customerId = customerToDelete.customer_id || customerToDelete.id
+      await axios.patch(`https://visa-app-1-q9ex.onrender.com/soft_delete_customer_via_id/${customerId}`, {}, {
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
+      
+      setCustomerData(prev => prev.filter(c => (c.customer_id || c.id) !== customerId))
+      setMessage('✅ Customer deleted successfully!')
+      setShowDeleteModal(false)
+      setCustomerToDelete(null)
+      
+      setTimeout(() => setMessage(''), 3000)
+    } catch (error) {
+      console.error('Error deleting customer:', error)
+      setMessage('❌ Error deleting customer. Please try again.')
+      setTimeout(() => setMessage(''), 3000)
+    }
+  }
+
+  const cancelDelete = () => {
+    setShowDeleteModal(false)
+    setCustomerToDelete(null)
+  }
+
   if (loading) {
     return (
-      <div className="app-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
-          <div style={{
-            width: '60px',
-            height: '60px',
-            border: '6px solid rgba(255, 255, 255, 0.3)',
-            borderTop: '6px solid white',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite'
-          }}></div>
-          <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '16px', fontWeight: '600', margin: 0 }}>
-            Loading Visa Management System...
-          </p>
+      <div className="flex justify-center items-center h-screen bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-slate-300 border-t-slate-700 rounded-full animate-spin"></div>
+          <p className="text-slate-700 text-sm font-medium">Loading Visa Management System...</p>
         </div>
       </div>
     )
   }
 
-  const daysRemaining = visaData?.h1bDetails?.endDate
-    ? calculateDaysRemaining(visaData.h1bDetails.endDate)
-    : null
-
-  const getExpiryStatus = (days) => {
-    if (days <= 2) return {
-      color: '#dc2626',
-      bg: 'rgba(239, 68, 68, 0.1)',
-      border: '#ef4444',
-      icon: AlertTriangle,
-      status: 'Critical'
-    }
-    if (days <= 10) return {
-      color: '#d97706',
-      bg: 'rgba(245, 158, 11, 0.1)',
-      border: '#f59e0b',
-      icon: Clock,
-      status: 'Warning'
-    }
-    return {
-      color: '#059669',
-      bg: 'rgba(16, 185, 129, 0.1)',
-      border: '#10b981',
-      icon: CheckCircle,
-      status: 'Active'
-    }
-  }
-
-  const expiryStatus = daysRemaining ? getExpiryStatus(daysRemaining) : null
-
   return (
-    <div className="app-container" style={{ minHeight: '100vh', padding: '20px' }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+    <div className="min-h-screen bg-slate-50 p-4">
+      <div className="max-w-7xl mx-auto">
         <style>{`
           @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
           }
+          @keyframes fadeIn {
+            0% { opacity: 0; transform: translateY(-10px); }
+            100% { opacity: 1; transform: translateY(0); }
+          }
         `}</style>
 
-        {/* Welcome Section */}
-        <div
-          className="card"
-          style={{
-            padding: '32px',
-            background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%)',
-            marginBottom: '24px',
-            borderRadius: '16px',
-            color: 'white',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '20px',
-              flexWrap: 'wrap',
-              width: '100%',
-            }}
-          >
-            {/* User Icon */}
-            <div
-              style={{
-                width: '60px',
-                height: '60px',
-                background: 'rgba(255, 255, 255, 0.2)',
-                borderRadius: '16px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 8px 20px rgba(0, 0, 0, 0.1)',
-              }}
-            >
-              <User style={{ width: '30px', height: '30px', color: 'white' }} />
+        {/* Header Section */}
+        <div className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-lg p-4 mb-6 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center">
+              <User className="w-5 h-5 text-white" />
             </div>
-
-            {/* Text Section */}
-            <div style={{ flex: 1, minWidth: '250px' }}>
-              {/* Heading and Trash aligned */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  width: '100%',
-                }}
-              >
-                <h1
-                  style={{
-                    fontSize: '28px',
-                    fontWeight: '800',
-                    margin: 0,
-                    color: 'white',
-                  }}
-                >
-                  Welcome back, {user?.firstName}!
-                </h1>
-
-                {/* Trash Button — small circular, right aligned */}
-                {selectedPerson !== null && (
-                  <button
-                    onClick={() => {
-                      setPersonToDelete(selectedPerson);
-                      setShowDeleteModal(true);
-                    }}
-                    style={{
-                      background: '#ef4444',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '50%',
-                      width: '26px',
-                      height: '26px',
-                      fontSize: '12px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      lineHeight: 1,
-                      padding: 0,
-                      boxShadow: '0 2px 6px rgba(239, 68, 68, 0.3)',
-                    }}
-                    title="Delete"
-                  >
-                    🗑️
-                  </button>
-                )}
-              </div>
-
-              {/* Subtext */}
-              <p
-                style={{
-                  fontSize: '16px',
-                  margin: '8px 0 0 0',
-                  color: 'rgba(255, 255, 255, 0.9)',
-                }}
-              >
-                {selectedPerson !== null
-                  ? `Viewing ${visaData?.personalDetails?.firstName} ${visaData?.personalDetails?.lastName}'s details`
-                  : 'Select a person to view their visa details'}
+            <div>
+              <h1 className="text-base font-semibold text-white">
+                Welcome back, {user?.firstName || 'User'}!
+              </h1>
+              <p className="text-xs text-slate-300">
+                Manage your H1B visa applications
               </p>
             </div>
           </div>
         </div>
 
-
-        {/* Person Selection Cards */}
-        {allApplications.length > 0 && (
-          <div className="card" style={{ padding: '24px', marginBottom: '24px' }}>
-            <h3 style={{
-              fontSize: '18px',
-              fontWeight: '700',
-              color: 'white',
-              marginBottom: '16px'
-            }}>
-              Select Person ({allApplications.length} applications)
-            </h3>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: '12px'
-            }}>
-              {allApplications.map((app, index) => (
-                <div
-                  key={index}
-                  style={{
-                    padding: '16px',
-                    background: selectedPerson === index
-                      ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%)'
-                      : 'rgba(255, 255, 255, 0.05)',
-                    color: 'white',
-                    borderRadius: '12px',
-                    border: `1px solid ${selectedPerson === index ? '#6366f1' : 'rgba(255, 255, 255, 0.1)'}`,
-                    cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    textAlign: 'center',
-                    position: 'relative'
-                  }}
-                >
-                  <div style={{
-                    position: 'absolute',
-                    top: '8px',
-                    right: '16px',
-                    display: 'flex',
-                    gap: '8px'
-                  }}>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleEditPerson(index)
-                      }}
-                      style={{
-                        background: '#3b82f6',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '50%',
-                        width: '24px',
-                        height: '24px',
-                        fontSize: '12px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                      }}
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setPersonToDelete(index)
-                        setShowDeleteModal(true)
-                      }}
-                      style={{
-                        background: '#ef4444',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '50%',
-                        width: '24px',
-                        height: '24px',
-                        fontSize: '14px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                      }}
-                    >
-                      ×
-                    </button>
-                  </div>
-                  <div
-                    onClick={() => {
-                      setSelectedPerson(index)
-                      setVisaData(app)
-                    }}
-                  >
-                    <div style={{
-                      width: '40px',
-                      height: '40px',
-                      background: selectedPerson === index ? 'rgba(255,255,255,0.2)' : '#6366f1',
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      margin: '0 auto 8px'
-                    }}>
-                      <User style={{ width: '20px', height: '20px', color: 'white' }} />
-                    </div>
-                    <h4 style={{ margin: '0 0 4px 0', fontSize: '14px', fontWeight: '600' }}>
-                      {app.personalDetails.firstName} {app.personalDetails.lastName}
-                    </h4>
-                    <p style={{ margin: 0, fontSize: '11px', opacity: 0.8 }}>
-                      {app.personalDetails.email}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
+        {/* Success/Error Message */}
+        {message && (
+          <div className={`p-3 mb-4 rounded-lg text-center text-sm font-medium ${
+            message.includes('✅') 
+              ? 'bg-green-50 text-green-700 border border-green-200' 
+              : 'bg-red-50 text-red-700 border border-red-200'
+          }`}>
+            {message}
           </div>
         )}
 
-        {/* Show details only when person is selected */}
-        {selectedPerson !== null && visaData && (
-          <>
-            {/* Visa Expiry Alert */}
-            {daysRemaining !== null && expiryStatus && (
-              <div className="card" style={{
-                padding: '24px',
-                background: expiryStatus.bg,
-                border: `1px solid ${expiryStatus.border}`,
-                marginBottom: '24px'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                    <div style={{
-                      width: '50px',
-                      height: '50px',
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      borderRadius: '12px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      <expiryStatus.icon style={{ width: '24px', height: '24px', color: expiryStatus.color }} />
-                    </div>
-                    <div>
-                      <h3 style={{
-                        fontSize: '24px',
-                        fontWeight: '800',
-                        color: expiryStatus.color,
-                        margin: 0
-                      }}>
-                        {daysRemaining} days remaining
-                      </h3>
-                      <p style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.7)', margin: '4px 0 0 0' }}>
-                        Expires on {formatDate(visaData.h1bDetails.endDate)}
-                      </p>
-                    </div>
-                  </div>
-                  <div style={{
-                    padding: '8px 16px',
-                    borderRadius: '20px',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    color: expiryStatus.color,
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    textTransform: 'uppercase'
-                  }}>
-                    {expiryStatus.status}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
-              gap: '20px',
-              marginBottom: '24px'
-            }}>
-              {/* Personal Details */}
-              <div className="card" style={{ padding: '24px' }}>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  marginBottom: '20px',
-                  paddingBottom: '12px',
-                  borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
-                }}>
-                  <div style={{
-                    width: '40px',
-                    height: '40px',
-                    background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-                    borderRadius: '10px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <User style={{ width: '20px', height: '20px', color: 'white' }} />
-                  </div>
-                  <h3 style={{
-                    fontSize: '16px',
-                    fontWeight: '700',
-                    color: 'white',
-                    margin: 0
-                  }}>
-                    Personal Information
-                  </h3>
-                </div>
-
-                {visaData?.personalDetails ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {[
-                      { label: 'Full Name', value: `${visaData.personalDetails.firstName} ${visaData.personalDetails.lastName}` },
-                      { label: 'Date of Birth', value: formatDate(visaData.personalDetails.dateOfBirth) },
-                      { label: 'Email', value: visaData.personalDetails.email },
-                      { label: 'Phone', value: visaData.personalDetails.phone },
-                      { label: 'Marital Status', value: visaData.personalDetails.maritalStatus },
-                      { label: 'Employment Start', value: formatDate(visaData.personalDetails.employmentStartDate) }
-                    ].map((item, index) => (
-                      <div key={index} style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '8px 0',
-                        borderBottom: index < 5 ? '1px solid rgba(255, 255, 255, 0.05)' : 'none'
-                      }}>
-                        <span style={{
-                          fontSize: '12px',
-                          fontWeight: '600',
-                          color: 'rgba(255, 255, 255, 0.7)'
-                        }}>
-                          {item.label}
-                        </span>
-                        <span style={{
-                          fontSize: '12px',
-                          fontWeight: '700',
-                          color: 'white'
-                        }}>
-                          {item.value}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                    <XCircle style={{ width: '40px', height: '40px', color: 'rgba(255, 255, 255, 0.5)', margin: '0 auto 12px' }} />
-                    <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '14px', margin: 0 }}>No personal details found</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Address Details */}
-              <div className="card" style={{ padding: '24px' }}>
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  marginBottom: '20px',
-                  paddingBottom: '12px',
-                  borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
-                }}>
-                  <div style={{
-                    width: '40px',
-                    height: '40px',
-                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                    borderRadius: '10px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    <MapPin style={{ width: '20px', height: '20px', color: 'white' }} />
-                  </div>
-                  <h3 style={{
-                    fontSize: '16px',
-                    fontWeight: '700',
-                    color: 'white',
-                    margin: 0
-                  }}>
-                    Address Information
-                  </h3>
-                </div>
-
-                {visaData?.addressDetails ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {[
-                      { label: 'Street Address', value: visaData.addressDetails.streetName },
-                      { label: 'City', value: visaData.addressDetails.city },
-                      { label: 'State', value: visaData.addressDetails.state },
-                      { label: 'ZIP Code', value: visaData.addressDetails.zip }
-                    ].map((item, index) => (
-                      <div key={index} style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '8px 0',
-                        borderBottom: index < 3 ? '1px solid rgba(255, 255, 255, 0.05)' : 'none'
-                      }}>
-                        <span style={{
-                          fontSize: '12px',
-                          fontWeight: '600',
-                          color: 'rgba(255, 255, 255, 0.7)'
-                        }}>
-                          {item.label}
-                        </span>
-                        <span style={{
-                          fontSize: '12px',
-                          fontWeight: '700',
-                          color: 'white'
-                        }}>
-                          {item.value}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                    <XCircle style={{ width: '40px', height: '40px', color: 'rgba(255, 255, 255, 0.5)', margin: '0 auto 12px' }} />
-                    <p style={{ color: 'rgba(255, 255, 255, 0.7)', fontSize: '14px', margin: 0 }}>No address details found</p>
-                  </div>
-                )}
-              </div>
+        {/* Customer Cards Section */}
+        <div className="mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-bold text-slate-800">
+              Customer Records
+            </h2>
+            <div className="bg-slate-800 text-white px-3 py-1 rounded-md text-xs font-medium">
+              {customerData.length} Total
             </div>
+          </div>
 
-            {/* H1B Details */}
-            <div className="card" style={{ padding: '24px' }}>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                marginBottom: '20px',
-                paddingBottom: '16px',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
-              }}>
-                <div style={{
-                  width: '40px',
-                  height: '40px',
-                  background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
-                  borderRadius: '10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <Building style={{ width: '20px', height: '20px', color: 'white' }} />
-                </div>
-                <h3 style={{
-                  fontSize: '18px',
-                  fontWeight: '700',
-                  color: 'white',
-                  margin: 0
-                }}>
-                  H1B Visa Details
-                </h3>
-              </div>
-
-              {visaData?.h1bDetails ? (
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-                  gap: '16px'
-                }}>
-                  {[
-                    { label: 'Client Company', value: visaData.h1bDetails.clientName },
-                    { label: 'Job Title', value: visaData.h1bDetails.lcaTitle },
-                    { label: 'Annual Salary', value: `$${visaData.h1bDetails.lcaSalary?.toLocaleString()}` },
-                    { label: 'LCA Code', value: visaData.h1bDetails.lcaCode },
-                    { label: 'Client Location', value: `${visaData.h1bDetails.clientCity}, ${visaData.h1bDetails.clientState}` }
-                  ].map((item, index) => (
-                    <div key={index} style={{
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      borderRadius: '12px',
-                      padding: '16px',
-                      border: '1px solid rgba(255, 255, 255, 0.1)'
-                    }}>
-                      <p style={{
-                        fontSize: '11px',
-                        fontWeight: '600',
-                        color: 'rgba(255, 255, 255, 0.7)',
-                        margin: '0 0 6px 0',
-                        textTransform: 'uppercase'
-                      }}>
-                        {item.label}
-                      </p>
-                      <p style={{
-                        fontSize: '14px',
-                        fontWeight: '700',
-                        color: 'white',
-                        margin: 0
-                      }}>
-                        {item.value}
-                      </p>
+          {customerData.length > 0 ? (
+            <div className="space-y-4">
+              {customerData.map((customer, index) => {
+                const isExpanded = expandedUserId === (customer.customer_id || index)
+                
+                return (
+                  <div key={customer.customer_id || index} className="bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                    {/* Main Card */}
+                    <div 
+                      onClick={() => setExpandedUserId(isExpanded ? null : (customer.customer_id || index))}
+                      className="p-4 cursor-pointer"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-10 h-10 bg-slate-700 rounded-lg flex items-center justify-center text-white text-sm font-bold">
+                              {(customer.first_name || 'U').charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <h3 className="text-sm font-bold text-slate-800">
+                                {customer.first_name || 'N/A'} {customer.last_name || ''}
+                              </h3>
+                              <p className="text-xs text-slate-600">
+                                {customer.email || customer.login_email || 'N/A'}
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-2 flex-wrap">
+                            <span className="bg-slate-800 text-white px-2 py-1 text-xs font-medium rounded">
+                              {customer.h1b_status || 'Active'}
+                            </span>
+                            <span className="bg-slate-700 text-white px-2 py-1 text-xs font-medium rounded">
+                              {customer.lca_title || 'Software Engineer'}
+                            </span>
+                            <span className="bg-slate-600 text-white px-2 py-1 text-xs font-medium rounded">
+                              {customer.phone || 'N/A'}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        {/* Action Icons */}
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => handleEdit(customer, e)}
+                            className="p-2 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
+                            title="Edit Customer"
+                          >
+                            <Edit className="w-4 h-4 text-slate-600" />
+                          </button>
+                          
+                          <button
+                            onClick={(e) => handleDelete(customer, e)}
+                            className="p-2 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
+                            title="Delete Customer"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-600" />
+                          </button>
+                          
+                          <div className={`text-slate-400 transition-transform duration-300 ${
+                            isExpanded ? 'rotate-180' : 'rotate-0'
+                          }`}>
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                  <XCircle style={{ width: '50px', height: '50px', color: 'rgba(255, 255, 255, 0.5)', margin: '0 auto 16px' }} />
-                  <h3 style={{ fontSize: '16px', fontWeight: '700', color: 'rgba(255, 255, 255, 0.7)', margin: '0 0 6px 0' }}>
-                    No H1B Details Found
-                  </h3>
-                  <p style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '14px', margin: 0 }}>
-                    Complete your visa application to view H1B information
-                  </p>
-                </div>
-              )}
-            </div>
-          </>
-        )}
+                    
+                    {/* Expanded Content */}
+                    {isExpanded && (
+                      <div className="bg-slate-50 p-4 border-t border-slate-200" style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {/* Personal Details */}
+                          <div className="bg-white rounded-lg p-3 border border-slate-200">
+                            <h4 className="text-slate-700 font-semibold mb-3 flex items-center text-xs">
+                              <span className="mr-2">👤</span> Personal Details
+                            </h4>
+                            <div className="space-y-2">
+                              <div className="flex justify-between py-1 border-b border-slate-100">
+                                <span className="font-medium text-slate-500 text-xs">Name:</span> 
+                                <span className="text-slate-800 text-xs">{customer.first_name || 'N/A'} {customer.last_name || ''}</span>
+                              </div>
+                              <div className="flex justify-between py-1 border-b border-slate-100">
+                                <span className="font-medium text-slate-500 text-xs">DOB:</span> 
+                                <span className="text-slate-800 text-xs">{customer.dob || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1 border-b border-slate-100">
+                                <span className="font-medium text-slate-500 text-xs">Sex:</span> 
+                                <span className="text-slate-800 text-xs">{customer.sex || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1 border-b border-slate-100">
+                                <span className="font-medium text-slate-500 text-xs">Marital Status:</span> 
+                                <span className="text-slate-800 text-xs">{customer.marital_status || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="font-medium text-slate-500 text-xs">Emergency Contact:</span> 
+                                <span className="text-slate-800 text-xs">{customer.emergency_contact_name || 'N/A'}</span>
+                              </div>
+                            </div>
+                          </div>
 
+                          {/* Address Details */}
+                          <div className="bg-white rounded-lg p-3 border border-slate-200">
+                            <h4 className="text-slate-700 font-semibold mb-3 flex items-center text-xs">
+                              <span className="mr-2">🏠</span> Address
+                            </h4>
+                            <div className="space-y-2">
+                              <div className="flex justify-between py-1 border-b border-slate-100">
+                                <span className="font-medium text-slate-500 text-xs">Street:</span> 
+                                <span className="text-slate-800 text-xs">{customer.street_name || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1 border-b border-slate-100">
+                                <span className="font-medium text-slate-500 text-xs">City:</span> 
+                                <span className="text-slate-800 text-xs">{customer.city || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1 border-b border-slate-100">
+                                <span className="font-medium text-slate-500 text-xs">State:</span> 
+                                <span className="text-slate-800 text-xs">{customer.state || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="font-medium text-slate-500 text-xs">ZIP:</span> 
+                                <span className="text-slate-800 text-xs">{customer.zip || 'N/A'}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* H1B Details */}
+                          <div className="bg-white rounded-lg p-3 border border-slate-200">
+                            <h4 className="text-slate-700 font-semibold mb-3 flex items-center text-xs">
+                              <span className="mr-2">📋</span> H1B Details
+                            </h4>
+                            <div className="space-y-2">
+                              <div className="flex justify-between py-1 border-b border-slate-100">
+                                <span className="font-medium text-slate-500 text-xs">Client:</span> 
+                                <span className="text-slate-800 text-xs">{customer.client_name || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1 border-b border-slate-100">
+                                <span className="font-medium text-slate-500 text-xs">Title:</span> 
+                                <span className="text-slate-800 text-xs">{customer.lca_title || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1 border-b border-slate-100">
+                                <span className="font-medium text-slate-500 text-xs">Salary:</span> 
+                                <span className="text-slate-800 font-semibold text-xs">${parseFloat(customer.lca_salary || 0).toLocaleString()}</span>
+                              </div>
+                              <div className="flex justify-between py-1 border-b border-slate-100">
+                                <span className="font-medium text-slate-500 text-xs">Receipt:</span> 
+                                <span className="text-slate-800 text-xs">{customer.receipt_number || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1 border-b border-slate-100">
+                                <span className="font-medium text-slate-500 text-xs">Start Date:</span> 
+                                <span className="text-slate-800 text-xs">{customer.h1b_start_date || 'N/A'}</span>
+                              </div>
+                              <div className="flex justify-between py-1">
+                                <span className="font-medium text-slate-500 text-xs">End Date:</span> 
+                                <span className="text-slate-800 text-xs">{customer.h1b_end_date || 'N/A'}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg p-8 text-center border border-slate-200">
+              <div className="w-16 h-16 bg-slate-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                <XCircle className="w-8 h-8 text-slate-400" />
+              </div>
+              <h3 className="text-base font-semibold text-slate-800 mb-2">
+                No Customer Records Found
+              </h3>
+              <p className="text-sm text-slate-600">
+                Start by creating your first H1B customer record.
+              </p>
+            </div>
+          )}
+        </div>
+        
         {/* Delete Confirmation Modal */}
         {showDeleteModal && (
-          <div style={{
-            position: 'fixed',
-            top: 200,
-            left: window.innerWidth <= 768 ? 150 : 500,
-            width: window.innerWidth <= 768 ? '50vw' : '30vw',
-            height: '30vh',
-            // background: 'rgba(0, 0, 0, 0.5)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 10000,
-          }}>
-            <div className="card" style={{
-              padding: '16px',
-              maxWidth: '280px',
-              width: '90%',
-              textAlign: 'center'
-            }}>
-              <h3 style={{
-                fontSize: '16px',
-                fontWeight: '700',
-                color: 'white',
-                margin: '0 0 8px 0'
-              }}>
-                Delete Application
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
+              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-6 h-6 text-red-600" />
+              </div>
+              
+              <h3 className="text-base font-semibold text-slate-800 mb-2 text-center">
+                Confirm Deletion
               </h3>
-              <p style={{
-                fontSize: '12px',
-                color: 'rgba(255, 255, 255, 0.7)',
-                margin: '0 0 16px 0'
-              }}>
-                Are you sure you want to delete {personToDelete !== null ? `${allApplications[personToDelete]?.personalDetails?.firstName} ${allApplications[personToDelete]?.personalDetails?.lastName}'s` : 'this'} application?
+              
+              <p className="text-sm text-slate-600 mb-6 text-center">
+                Are you sure you want to delete <strong>{customerToDelete?.first_name} {customerToDelete?.last_name}</strong>? This action cannot be undone.
               </p>
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+              
+              <div className="flex gap-3 justify-center">
                 <button
-                  onClick={() => {
-                    setShowDeleteModal(false)
-                    setPersonToDelete(null)
-                  }}
-                  style={{
-                    padding: '10px 20px',
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    color: 'rgba(255, 255, 255, 0.7)',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    cursor: 'pointer'
-                  }}
+                  onClick={cancelDelete}
+                  className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
                 >
-                  No, Cancel
+                  Cancel
                 </button>
                 <button
-                  onClick={handleDelete}
-                  style={{
-                    padding: '10px 20px',
-                    background: '#ef4444',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    cursor: 'pointer'
-                  }}
+                  onClick={confirmDelete}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors"
                 >
-                  Yes, Delete
+                  Delete
                 </button>
               </div>
             </div>
           </div>
         )}
+        
       </div>
     </div>
   )

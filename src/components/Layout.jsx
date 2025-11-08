@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { Button } from './ui/Button'
-import { User, FileText, Shield, LogOut, Home, Bell, Menu, ChevronLeft, X } from 'lucide-react'
+import { User, FileText, Shield, LogOut, Home, Bell, Menu, ChevronLeft, X, Plane, BarChart3, Settings } from 'lucide-react'
 
 const Layout = ({ children }) => {
   const navigate = useNavigate()
@@ -10,11 +9,14 @@ const Layout = ({ children }) => {
   const activeTab = location.pathname.slice(1) || 'profile'
   const { user, logout } = useAuth()
   const [showNotifications, setShowNotifications] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [sidebarExpanded, setSidebarExpanded] = useState(window.innerWidth > 768)
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const notificationRef = useRef(null)
   const bellRef = useRef(null)
+  const settingsRef = useRef(null)
+  const settingsButtonRef = useRef(null)
 
   useEffect(() => {
     const handleResize = () => {
@@ -42,166 +44,102 @@ const Layout = ({ children }) => {
           !bellRef.current.contains(event.target)) {
         setShowNotifications(false)
       }
+      if (showSettings && 
+          settingsRef.current && 
+          !settingsRef.current.contains(event.target) &&
+          settingsButtonRef.current &&
+          !settingsButtonRef.current.contains(event.target)) {
+        setShowSettings(false)
+      }
     }
 
     document.addEventListener('mousedown', handleClickOutside)
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [showNotifications])
+  }, [showNotifications, showSettings])
 
   const menuItems = [
-    { id: 'profile', label: 'Dashboard', icon: Home },
-    { id: 'visa-apply', label: 'Visa Application', icon: FileText },
+    { id: 'profile', label: 'Dashboard', icon: BarChart3 },
+    { id: 'visa-apply', label: 'Apply for Visa', icon: FileText },
     ...(user?.role === 'admin' ? [{ id: 'admin', label: 'Admin Panel', icon: Shield }] : [])
   ]
 
   return (
-    <div className="app-container" style={{ display: 'flex', height: '100vh', position: 'relative' }}>
+    <div className="flex h-screen bg-slate-50 font-sans">
       {/* Mobile Overlay */}
       {isMobile && sidebarOpen && (
         <div 
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.5)',
-            zIndex: 998
-          }}
+          className="fixed inset-0 bg-black/50 z-[998] backdrop-blur-sm"
           onClick={() => setSidebarOpen(false)}
         />
       )}
       
       {/* Sidebar */}
-      <div style={{
-        width: isMobile ? '280px' : (sidebarExpanded ? '280px' : '60px'),
-        minWidth: isMobile ? '280px' : (sidebarExpanded ? '280px' : '60px'),
-        background: 'rgba(255, 255, 255, 0.05)',
-        backdropFilter: 'blur(30px)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        display: 'flex',
-        flexDirection: 'column',
-        transition: 'all 0.3s ease',
-        overflow: 'hidden',
-        position: isMobile ? 'fixed' : 'relative',
-        left: isMobile ? (sidebarOpen ? '0' : '-280px') : '0',
-        top: isMobile ? '0' : 'auto',
-        height: isMobile ? '100vh' : 'auto',
-        zIndex: 999
-      }}>
+      <div className={`
+        ${isMobile ? 'w-[280px] min-w-[280px]' : (sidebarExpanded ? 'w-[280px] min-w-[280px]' : 'w-[70px] min-w-[70px]')}
+        bg-white border-r border-slate-200 flex flex-col transition-all duration-300 overflow-hidden
+        ${isMobile ? 'fixed' : 'relative'}
+        ${isMobile ? (sidebarOpen ? 'left-0' : '-left-[280px]') : 'left-0'}
+        ${isMobile ? 'top-0 h-screen' : 'top-auto h-auto'}
+        z-[999] shadow-lg shadow-slate-900/10
+      `}>
         {/* Header */}
-        <div style={{
-          padding: (isMobile || sidebarExpanded) ? '24px' : '12px',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: (isMobile || sidebarExpanded) ? 'space-between' : 'center',
-          position: 'relative'
-        }}>
+        <div className={`bg-gradient-to-r from-slate-800 to-slate-900 flex items-center relative
+          ${(isMobile || sidebarExpanded) ? 'p-5 justify-between' : 'p-4 justify-center'}
+        `}>
           {(isMobile || sidebarExpanded) ? (
             <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{
-                  width: '32px',
-                  height: '32px',
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  borderRadius: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}>
-                  <FileText style={{ width: '16px', height: '16px', color: 'white' }} />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center">
+                  <Plane className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <h1 style={{
-                    fontSize: '16px',
-                    fontWeight: '800',
-                    color: 'white',
-                    margin: 0
-                  }}>
-                    Visa Manager
+                  <h1 className="text-sm font-bold text-white m-0">
+                    VisaFlow
                   </h1>
-                  <p style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.8)', margin: 0 }}>
-                    Professional Portal
+                  <p className="text-xs text-slate-300 m-0">
+                    Travel Management
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => isMobile ? setSidebarOpen(false) : setSidebarExpanded(false)}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  borderRadius: '6px',
-                  padding: '6px',
-                  cursor: 'pointer',
-                  color: 'white',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.3s ease'
-                }}
+                className="bg-white/10 border border-white/20 rounded-lg p-2 cursor-pointer text-white flex items-center justify-center transition-all duration-300 hover:bg-white/20"
               >
-                {isMobile ? <X size={14} /> : <ChevronLeft size={14} />}
+                {isMobile ? <X size={16} /> : <ChevronLeft size={16} />}
               </button>
             </>
           ) : (
             <button
               onClick={() => setSidebarExpanded(true)}
-              style={{
-                background: 'rgba(255, 255, 255, 0.1)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                borderRadius: '6px',
-                padding: '8px',
-                cursor: 'pointer',
-                color: 'white',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.3s ease'
-              }}
+              className="bg-white/10 border border-white/20 rounded-lg p-2.5 cursor-pointer text-white flex items-center justify-center transition-all duration-300 hover:bg-white/20"
             >
-              <Menu size={16} />
+              <Menu size={18} />
             </button>
           )}
         </div>
 
         {/* User Info */}
         {(isMobile || sidebarExpanded) && (
-          <div style={{ padding: '16px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{
-                width: '28px',
-                height: '28px',
-                background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%)',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <User style={{ width: '14px', height: '14px', color: 'white' }} />
+          <div className="p-4 border-b border-slate-200">
+            <div className="flex items-center gap-3">
+              <div className="bg-slate-700 w-10 h-10 rounded-lg flex items-center justify-center">
+                <User className="w-5 h-5 text-white" />
               </div>
-              <div>
-                <p style={{ fontWeight: '600', color: 'white', margin: 0, fontSize: '12px' }}>
-                  {user?.firstName} {user?.lastName}
+              <div className="flex-1">
+                <p className="font-semibold text-blue-800 m-0 text-xs">
+                  {user?.firstName || 'User'} {user?.lastName || ''}
                 </p>
-                <p style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.7)', margin: 0 }}>
+                <p className="text-xs text-blue-500 m-0 mb-1">
                   {user?.email}
                 </p>
-                <span style={{
-                  display: 'inline-block',
-                  padding: '1px 4px',
-                  fontSize: '8px',
-                  borderRadius: '6px',
-                  marginTop: '2px',
-                  background: user?.role === 'admin' ? '#8b5cf6' : '#6366f1',
-                  color: 'white',
-                  fontWeight: '600',
-                  textTransform: 'uppercase'
-                }}>
-                  {user?.role === 'admin' ? 'Admin' : 'User'}
+                <span className={`inline-flex items-center px-2.5 py-1 text-xs rounded-full font-medium
+                  ${user?.role === 'admin' 
+                    ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-sm' 
+                    : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-sm'}
+                `}>
+                  {user?.role === 'admin' ? '👑 Admin' : '✈️ Traveler'}
                 </span>
               </div>
             </div>
@@ -209,7 +147,7 @@ const Layout = ({ children }) => {
         )}
 
         {/* Navigation */}
-        <nav style={{ padding: '12px 0', flex: 1 }}>
+        <nav className="py-6 flex-1">
           {menuItems.map((item) => {
             const Icon = item.icon
             const isActive = activeTab === item.id
@@ -222,38 +160,22 @@ const Layout = ({ children }) => {
                     localStorage.removeItem('editingPersonIndex')
                   }
                   navigate(`/${item.id}`)
+                  if (isMobile) setSidebarOpen(false)
                 }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: (isMobile || sidebarExpanded) ? 'flex-start' : 'center',
-                  padding: (isMobile || sidebarExpanded) ? '12px 16px' : '12px 8px',
-                  borderRadius: '8px',
-                  margin: (isMobile || sidebarExpanded) ? '4px 12px' : '4px 8px',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease',
-                  background: isActive
-                    ? 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%)'
-                    : 'transparent',
-                  color: isActive ? 'white' : 'rgba(255, 255, 255, 0.8)',
-                  boxShadow: isActive ? '0 6px 15px rgba(99, 102, 241, 0.3)' : 'none',
-                  position: 'relative'
-                }}
+                className={`cursor-pointer transition-all duration-300 flex items-center gap-4 font-medium group
+                  ${(isMobile || sidebarExpanded) ? 'mx-4 p-3 rounded-xl justify-start' : 'mx-3 p-3 rounded-xl justify-center'}
+                  ${isActive 
+                    ? 'bg-gradient-to-r from-slate-800 to-slate-900 text-white shadow-lg shadow-slate-800/25' 
+                    : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-800'
+                  }
+                `}
               >
-                <Icon style={{
-                  width: '18px',
-                  height: '18px',
-                  marginRight: (isMobile || sidebarExpanded) ? '12px' : '0',
-                  color: isActive ? 'white' : 'rgba(255, 255, 255, 0.7)',
-                  flexShrink: 0
-                }} />
+                <Icon className={`flex-shrink-0 transition-all duration-300
+                  ${(isMobile || sidebarExpanded) ? 'w-5 h-5' : 'w-6 h-6'}
+                  ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-700'}
+                `} />
                 {(isMobile || sidebarExpanded) && (
-                  <span style={{ 
-                    fontWeight: '600', 
-                    fontSize: '13px',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden'
-                  }}>
+                  <span className="font-semibold text-xs whitespace-nowrap overflow-hidden">
                     {item.label}
                   </span>
                 )}
@@ -263,33 +185,18 @@ const Layout = ({ children }) => {
         </nav>
 
         {/* Logout Button */}
-        <div style={{ padding: (isMobile || sidebarExpanded) ? '16px' : '12px' }}>
+        <div className={`${(isMobile || sidebarExpanded) ? 'p-4' : 'p-3'} border-t border-slate-200/50`}>
           <button
             onClick={logout}
-            style={{
-              width: '100%',
-              background: 'rgba(239, 68, 68, 0.1)',
-              color: '#ef4444',
-              border: '1px solid rgba(239, 68, 68, 0.2)',
-              padding: (isMobile || sidebarExpanded) ? '10px 12px' : '10px 8px',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: (isMobile || sidebarExpanded) ? '8px' : '0',
-              fontWeight: '600',
-              fontSize: (isMobile || sidebarExpanded) ? '12px' : '0',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease'
-            }}
+            className={`w-full bg-red-50/80 hover:bg-red-100/80 text-red-600 hover:text-red-700 border border-red-200/50 transition-all duration-300 flex items-center justify-center font-medium rounded-xl shadow-sm hover:shadow-md
+              ${(isMobile || sidebarExpanded) ? 'p-3 gap-3' : 'p-3'}
+            `}
           >
-            <LogOut style={{ 
-              width: (isMobile || sidebarExpanded) ? '14px' : '16px', 
-              height: (isMobile || sidebarExpanded) ? '14px' : '16px',
-              flexShrink: 0
-            }} />
+            <LogOut className={`flex-shrink-0
+              ${(isMobile || sidebarExpanded) ? 'w-4 h-4' : 'w-5 h-5'}
+            `} />
             {(isMobile || sidebarExpanded) && (
-              <span style={{ whiteSpace: 'nowrap' }}>Sign Out</span>
+              <span className="text-xs font-semibold">Sign Out</span>
             )}
           </button>
         </div>
@@ -304,47 +211,30 @@ const Layout = ({ children }) => {
         width: isMobile ? '100%' : 'auto'
       }}>
         {/* Top Bar */}
-        <div className="card" style={{
-          background: 'rgba(255, 255, 255, 0.05)',
-          backdropFilter: 'blur(30px)',
-          border: 'none',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-          padding: isMobile ? '12px' : '20px 24px',
-          borderRadius: 0,
+        <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200/50 shadow-sm" style={{
+          padding: isMobile ? '16px 20px' : '20px 32px',
           width: '100%',
           boxSizing: 'border-box',
           flexShrink: 0
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
               {isMobile && (
                 <button
                   onClick={() => setSidebarOpen(true)}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    borderRadius: '6px',
-                    padding: '6px',
-                    cursor: 'pointer',
-                    color: 'white',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
+                  className="bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl p-2.5 transition-all duration-200"
                 >
-                  <Menu size={14} />
+                  <Menu className="w-5 h-5 text-slate-600" />
                 </button>
               )}
               <div>
-                <h2 className="gradient-text" style={{
-                  fontSize: isMobile ? '18px' : '24px',
-                  fontWeight: '800',
-                  margin: 0
-                }}>
+                <h2 className={`font-bold text-slate-800 m-0
+                  ${isMobile ? 'text-xl' : 'text-2xl'}
+                `}>
                   {menuItems.find(item => item.id === activeTab)?.label || 'Dashboard'}
                 </h2>
                 {!isMobile && (
-                  <p style={{ color: 'rgba(255, 255, 255, 0.7)', margin: '4px 0 0 0', fontSize: '12px' }}>
+                  <p className="text-slate-500 m-0 mt-1 text-sm">
                     {new Date().toLocaleDateString('en-US', {
                       weekday: 'long',
                       year: 'numeric',
@@ -355,41 +245,32 @@ const Layout = ({ children }) => {
                 )}
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{ position: 'relative' }}>
-                <div 
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <button 
                   ref={bellRef}
                   onClick={() => setShowNotifications(!showNotifications)}
-                  style={{
-                    position: 'relative',
-                    padding: '10px',
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    borderRadius: '10px',
-                    cursor: 'pointer',
-                    border: '1px solid rgba(255, 255, 255, 0.2)'
-                  }}
+                  className="relative bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl p-3 transition-all duration-200 group"
                 >
-                  <Bell style={{ width: '16px', height: '16px', color: 'rgba(255, 255, 255, 0.8)' }} />
-                  <span style={{
-                    position: 'absolute',
-                    top: '6px',
-                    right: '6px',
-                    width: '6px',
-                    height: '6px',
-                    background: '#ef4444',
-                    borderRadius: '50%'
-                  }}></span>
-                </div>
+                  <Bell className="w-5 h-5 text-slate-600 group-hover:text-slate-800" />
+                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-red-500 to-red-600 rounded-full border-2 border-white"></span>
+                </button>
+              </div>
+              <div className="relative">
+                <button 
+                  ref={settingsButtonRef}
+                  onClick={() => setShowSettings(!showSettings)}
+                  className="bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-xl p-3 transition-all duration-200 group"
+                >
+                  <Settings className="w-5 h-5 text-slate-600 group-hover:text-slate-800" />
+                </button>
               </div>
             </div>
           </div>
         </div>
 
         {/* Page Content */}
-        <div style={{
-          flex: 1,
-          overflow: 'auto',
-          padding: '0',
+        <div className="flex-1 overflow-auto bg-gradient-to-br from-slate-50/50 to-blue-50/30" style={{
           minHeight: 0,
           width: '100%',
           maxWidth: '100%',
@@ -403,73 +284,87 @@ const Layout = ({ children }) => {
       {showNotifications && (
         <div 
           ref={notificationRef}
-          className="card"
+          className="fixed bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200/50 overflow-hidden"
           style={{
-            position: 'fixed',
-            top: '80px',
-            right: '40px',
-            width: '20px',
-            maxHeight: '150px',
-            zIndex: 999999,
-            overflow: 'hidden',
-            padding: 0
+            top: '90px',
+            right: '32px',
+            width: '360px',
+            maxHeight: '480px',
+            zIndex: 999999
           }}
         >
-          <div style={{ padding: '12px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
-            <h3 style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: 'white' }}>Visa Expiry Alerts</h3>
+          <div className="p-6 border-b border-slate-200/50 bg-gradient-to-r from-blue-50 to-indigo-50">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                <Bell className="w-4 h-4 text-white" />
+              </div>
+              <h3 className="m-0 text-lg font-bold text-slate-800">Notifications</h3>
+            </div>
           </div>
-          <div style={{ maxHeight: '250px', overflowY: 'auto' }}>
-            {(() => {
-              const allAppsData = localStorage.getItem('allVisaApplications')
-              if (allAppsData) {
-                const parsedApps = JSON.parse(allAppsData)
-                const alerts = parsedApps.filter(app => {
-                  if (app.h1bDetails && app.h1bDetails.endDate) {
-                    const daysLeft = Math.ceil((new Date(app.h1bDetails.endDate) - new Date()) / (1000 * 60 * 60 * 24))
-                    return daysLeft <= 10 && daysLeft > 0
-                  }
-                  return false
-                }).map(app => {
-                  const daysLeft = Math.ceil((new Date(app.h1bDetails.endDate) - new Date()) / (1000 * 60 * 60 * 24))
-                  return { ...app, daysLeft }
-                })
-                
-                return alerts.length > 0 ? (
-                  alerts.map((app, index) => (
-                    <div key={index} style={{ 
-                      padding: '10px 12px', 
-                      borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                      background: app.daysLeft <= 3 ? 'rgba(239, 68, 68, 0.1)' : app.daysLeft <= 7 ? 'rgba(245, 158, 11, 0.1)' : 'rgba(59, 130, 246, 0.1)'
-                    }}>
-                      <div style={{ fontSize: '12px', fontWeight: '600', color: 'white' }}>
-                        {app.personalDetails.firstName} {app.personalDetails.lastName}
-                      </div>
-                      <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.7)', margin: '2px 0' }}>
-                        {app.personalDetails.email}
-                      </div>
-                      <div style={{ 
-                        fontSize: '11px', 
-                        fontWeight: '600',
-                        color: app.daysLeft <= 3 ? '#ef4444' : app.daysLeft <= 7 ? '#f59e0b' : '#6366f1',
-                        margin: '4px 0 0 0'
-                      }}>
-                        ⚠️ {app.daysLeft} days until visa expiry
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div style={{ padding: '12px', textAlign: 'center' }}>
-                    <p style={{ margin: 0, color: 'rgba(255, 255, 255, 0.7)', fontSize: '12px' }}>No urgent visa expiry alerts</p>
-                  </div>
-                )
-              } else {
-                return (
-                  <div style={{ padding: '12px', textAlign: 'center' }}>
-                    <p style={{ margin: 0, color: 'rgba(255, 255, 255, 0.7)', fontSize: '12px' }}>No visa applications found</p>
-                  </div>
-                )
-              }
-            })()} 
+          <div className="max-h-80 overflow-y-auto">
+            <div className="p-8 text-center">
+              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Bell className="w-8 h-8 text-slate-400" />
+              </div>
+              <p className="m-0 text-slate-500 text-sm font-medium">No new notifications</p>
+              <p className="m-0 text-slate-400 text-xs mt-1">We'll notify you when something important happens</p>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Settings Popup */}
+      {showSettings && (
+        <div 
+          ref={settingsRef}
+          className="fixed bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200/50 overflow-hidden"
+          style={{
+            top: '90px',
+            right: '32px',
+            width: '280px',
+            zIndex: 999999
+          }}
+        >
+          <div className="p-4 border-b border-slate-200/50 bg-gradient-to-r from-slate-50 to-slate-100">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-gradient-to-r from-slate-800 to-slate-900 rounded-lg flex items-center justify-center">
+                <Settings className="w-4 h-4 text-white" />
+              </div>
+              <h3 className="m-0 text-base font-bold text-slate-800">Settings</h3>
+            </div>
+          </div>
+          <div className="p-2">
+            <button 
+              onClick={() => { setShowSettings(false); navigate('/profile'); }}
+              className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              Profile Settings
+            </button>
+            <button 
+              onClick={() => { setShowSettings(false); alert('Account Preferences - Coming Soon!'); }}
+              className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              Account Preferences
+            </button>
+            <button 
+              onClick={() => { setShowSettings(false); alert('Notification Settings - Coming Soon!'); }}
+              className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              Notification Settings
+            </button>
+            <button 
+              onClick={() => { setShowSettings(false); alert('Privacy & Security - Coming Soon!'); }}
+              className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              Privacy & Security
+            </button>
+            <div className="border-t border-slate-200 my-2"></div>
+            <button 
+              onClick={() => { setShowSettings(false); alert('Help & Support - Contact us at support@visaflow.com'); }}
+              className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              Help & Support
+            </button>
           </div>
         </div>
       )}

@@ -5,7 +5,7 @@ const ApiTest = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const baseUrl = "https://visa-app.free.beeceptor.com/get-visa"
+  const baseUrl = "https://visa-app-1-q9ex.onrender.com/customers"
 
   useEffect(() => {
     fetchData()
@@ -14,7 +14,12 @@ const ApiTest = () => {
   const fetchData = async () => {
     try {
       setLoading(true)
-      const response = await fetch(baseUrl)
+      const response = await fetch(baseUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      })
       const result = await response.json()
       setData(result)
     } catch (err) {

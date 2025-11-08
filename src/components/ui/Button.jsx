@@ -3,10 +3,10 @@ import { cn } from '../../lib/utils'
 
 const Button = React.forwardRef(({ className, variant = 'default', size = 'default', ...props }, ref) => {
   const variants = {
-    default: 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white hover:from-indigo-600 hover:to-purple-700 shadow-lg hover:shadow-xl',
-    destructive: 'bg-gradient-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700 shadow-lg hover:shadow-xl',
+    default: 'bg-orange-500 text-white hover:bg-orange-600 shadow-lg hover:shadow-xl',
+    destructive: 'bg-red-500 text-white hover:bg-red-600 shadow-lg hover:shadow-xl',
     outline: 'border-2 border-slate-200 bg-white hover:bg-slate-50 text-slate-700 hover:border-slate-300 shadow-sm hover:shadow-md',
-    secondary: 'bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 hover:from-slate-200 hover:to-slate-300 shadow-sm hover:shadow-md',
+    secondary: 'bg-orange-100 text-orange-700 hover:bg-orange-200 shadow-sm hover:shadow-md',
     ghost: 'hover:bg-slate-100 text-slate-600 hover:text-slate-800',
   }
 

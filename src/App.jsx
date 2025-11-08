@@ -7,7 +7,7 @@ import Register from './pages/Register'
 import Profile from './pages/Profile'
 import VisaApply from './pages/VisaApply'
 import AdminDashboard from './pages/AdminDashboard'
-import ApiTest from './pages/ApiTest'
+
 import './App.css'
 
 const AppContent = () => {
@@ -43,7 +43,7 @@ const AppContent = () => {
         <Route path="/" element={<Navigate to="/profile" replace />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/visa-apply" element={<VisaApply />} />
-        <Route path="/api-test" element={<ApiTest />} />
+
         <Route path="/admin" element={user.role === 'admin' ? <AdminDashboard /> : <Navigate to="/profile" replace />} />
       </Routes>
     </Layout>
@@ -53,7 +53,7 @@ const AppContent = () => {
 function App() {
   return (
     <AuthProvider>
-       <Router basename="/Visa_app">
+       <Router>
         <AppContent />
       </Router>
     </AuthProvider>
