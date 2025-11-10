@@ -53,6 +53,7 @@ const Register = ({ setIsLogin }) => {
       if (result.success) {
         console.log('✅ Registration successful!')
         setFormData({ email: '', password: '' })
+        setError('📧 Confirmation email sent! Please check your inbox to verify your account before logging in.')
       } else {
         setError(result.error || 'Registration failed')
       }
@@ -153,7 +154,11 @@ const Register = ({ setIsLogin }) => {
               </div>
 
               {error && (
-                <div className="bg-red-500/10 border border-red-500/20 text-red-300 px-4 py-3 rounded-xl mb-6 backdrop-blur-sm">
+                <div className={`px-4 py-3 rounded-xl mb-6 backdrop-blur-sm ${
+                  error.includes('📧') 
+                    ? 'bg-green-500/10 border border-green-500/20 text-green-300'
+                    : 'bg-red-500/10 border border-red-500/20 text-red-300'
+                }`}>
                   {error}
                 </div>
               )}
