@@ -43,7 +43,7 @@ export const AuthProvider = ({ children }) => {
         
         // Redirect to dashboard after successful authentication
         if (event === 'SIGNED_IN') {
-          window.location.href = '/#/profile'
+          window.location.href = '/profile'
         }
       } else {
         setUser(null)
@@ -96,10 +96,7 @@ export const AuthProvider = ({ children }) => {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo:
-            process.env.NODE_ENV === 'production'
-              ? 'https://nithyasriarjava.github.io/#/profile'
-              : 'http://localhost:5173/#/profile',
+          redirectTo: `${window.location.origin}/profile`
         }
       })
       if (error) {
