@@ -21,6 +21,18 @@ const Profile = () => {
     }
   }, [user?.email])
 
+  // Add effect to refresh data when component mounts or user returns to page
+  useEffect(() => {
+    const handleFocus = () => {
+      if (user?.email) {
+        fetchCustomerData()
+      }
+    }
+    
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [user?.email])
+
   const fetchCustomerData = async () => {
     try {
       console.log('Fetching customer data for email:', user?.email)
@@ -33,7 +45,8 @@ const Profile = () => {
       const response = await axios.get(`https://visa-app-1-q9ex.onrender.com/h1b_customer/by_login_email/${user.email}`, {
         headers: {
           'Content-Type': 'application/json',
-        }
+        },
+        timeout: 10000 // 10 second timeout for faster loading
       })
       
       console.log('API Response received:', response.data)
@@ -47,17 +60,18 @@ const Profile = () => {
         }
       }
       
-      // Filter out soft-deleted records (is_deleted = true or deleted_at is not null)
+      // Only show records with h1b_status === 'active'
       const activeCustomers = customerArray.filter(customer => 
-        !customer.is_deleted && 
-        !customer.deleted_at && 
-        customer.deleted_at !== true
+        customer.h1b_status === 'active'
       )
       
       setCustomerData(activeCustomers)
       setLoading(false)
     } catch (error) {
       console.error('Error fetching customer data:', error)
+      if (error.code === 'ECONNABORTED') {
+        setMessage('⚠️ Dashboard is taking longer to load. Please refresh the page.')
+      }
       setCustomerData([])
       setLoading(false)
     }
@@ -120,7 +134,9 @@ const Profile = () => {
         }
       })
       
-      setCustomerData(prev => prev.filter(c => (c.customer_id || c.id) !== customerId))
+      // Refetch data from server to ensure UI is properly updated
+      await fetchCustomerData()
+      
       setMessage('✅ Customer deleted successfully!')
       setShowDeleteModal(false)
       setCustomerToDelete(null)
@@ -143,7 +159,7 @@ const Profile = () => {
       <div className="flex justify-center items-center h-screen bg-slate-50">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-slate-300 border-t-slate-700 rounded-full animate-spin"></div>
-          <p className="text-slate-700 text-sm font-medium">Loading Visa Management System...</p>
+          <p className="text-slate-700 text-sm font-medium">Loading Dashboard...</p>
         </div>
       </div>
     )
@@ -173,6 +189,9 @@ const Profile = () => {
               <h1 className="text-base font-semibold text-white">
                 Welcome back, {user?.firstName || 'User'}!
               </h1>
+              <p className="text-xs text-slate-300">
+                {user?.email}
+              </p>
               <p className="text-xs text-slate-300">
                 Manage your H1B visa applications
               </p>

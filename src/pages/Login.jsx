@@ -40,10 +40,10 @@ const Login = ({ setIsLogin }) => {
     try {
       const result = await loginWithGoogle();
       if (!result.success) {
-        setError(result.error || 'Google login failed');
+        setError(result.error || 'Google authentication failed. Please try again.');
       }
     } catch (error) {
-      setError('Google login failed');
+      setError('Google authentication failed. Please try again.');
     }
   };
 

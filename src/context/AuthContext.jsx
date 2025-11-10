@@ -30,7 +30,7 @@ export const AuthProvider = ({ children }) => {
     })
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
         const userData = {
           id: session.user.id,
@@ -40,6 +40,11 @@ export const AuthProvider = ({ children }) => {
           role: session.user.email?.includes('admin') ? 'admin' : 'user'
         }
         setUser(userData)
+        
+        // Redirect to dashboard after successful authentication
+        if (event === 'SIGNED_IN') {
+          window.location.href = '/#/profile'
+        }
       } else {
         setUser(null)
       }
@@ -49,37 +54,41 @@ export const AuthProvider = ({ children }) => {
   }, [])
 
   const login = async (email, password) => {
-    // Simple demo login - replace with your backend API
-    if (email && password) {
-      const user = {
-        id: Date.now().toString(),
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
-        firstName: email.split('@')[0],
-        lastName: '',
-        role: email.includes('admin') ? 'admin' : 'user'
+        password
+      })
+      
+      if (error) {
+        return { success: false, error: 'Invalid email or password' }
       }
-      setUser(user)
-      localStorage.setItem('currentUser', JSON.stringify(user))
-      return { success: true }
+      
+      if (data?.user) {
+        return { success: true, user: data.user }
+      }
+      
+      return { success: false, error: 'Invalid email or password' }
+    } catch (error) {
+      return { success: false, error: 'Invalid email or password' }
     }
-    return { success: false, error: 'Invalid credentials' }
   }
 
   const register = async (email, password) => {
-    // Simple demo registration - replace with your backend API
-    if (email && password) {
-      const user = {
-        id: Date.now().toString(),
+    try {
+      const { data, error } = await supabase.auth.signUp({
         email,
-        firstName: email.split('@')[0],
-        lastName: '',
-        role: 'user'
+        password
+      })
+      
+      if (error) {
+        return { success: false, error: error.message }
       }
-      setUser(user)
-      localStorage.setItem('currentUser', JSON.stringify(user))
+      
       return { success: true }
+    } catch (error) {
+      return { success: false, error: 'Registration failed' }
     }
-    return { success: false, error: 'Registration failed' }
   }
 
   const loginWithGoogle = async () => {
@@ -87,7 +96,10 @@ export const AuthProvider = ({ children }) => {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/profile`
+          redirectTo:
+            process.env.NODE_ENV === 'production'
+              ? 'https://nithyasriarjava.github.io/#/profile'
+              : 'http://localhost:5173/#/profile',
         }
       })
       if (error) {
@@ -102,9 +114,17 @@ export const AuthProvider = ({ children }) => {
   }
 
   const logout = async () => {
-    await supabase.auth.signOut()
-    setUser(null)
-    window.location.href = '/'
+    try {
+      await supabase.auth.signOut()
+      setUser(null)
+      localStorage.removeItem('currentUser')
+      window.location.href = '/'
+    } catch (error) {
+      console.error('Logout error:', error)
+      setUser(null)
+      localStorage.removeItem('currentUser')
+      window.location.href = '/'
+    }
   }
 
   return (
