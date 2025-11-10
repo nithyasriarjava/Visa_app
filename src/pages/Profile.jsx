@@ -28,7 +28,7 @@ const Profile = () => {
         fetchCustomerData()
       }
     }
-    
+
     window.addEventListener('focus', handleFocus)
     return () => window.removeEventListener('focus', handleFocus)
   }, [user?.email])
@@ -41,17 +41,18 @@ const Profile = () => {
         setLoading(false)
         return
       }
-      
+
       const response = await axios.get(`https://visa-app-1-q9ex.onrender.com/h1b_customer/by_login_email/${user.email}`, {
         headers: {
           'Content-Type': 'application/json',
         },
         timeout: 10000 // 10 second timeout for faster loading
       })
-      
+
       console.log('API Response received:', response.data)
-      
+
       let customerArray = []
+       console.log('Total customers fetched:', customerArray.length)
       if (response.data) {
         if (Array.isArray(response.data)) {
           customerArray = response.data
@@ -59,12 +60,16 @@ const Profile = () => {
           customerArray = [response.data]
         }
       }
-      
-      // Only show records with h1b_status === 'active'
-      const activeCustomers = customerArray.filter(customer => 
-        customer.h1b_status === 'active'
-      )
-      
+     
+
+      const activeCustomers = customerArray.filter(c => {
+        const status = (c.h1b_status || c.H1B_status || c.status || '').toString().toLowerCase()
+        return status === 'active' || status === '' || !status
+      })
+
+      // Debugging check
+      console.log('Active customers after filter:', activeCustomers)
+
       setCustomerData(activeCustomers)
       setLoading(false)
     } catch (error) {
@@ -125,7 +130,7 @@ const Profile = () => {
 
   const confirmDelete = async () => {
     if (!customerToDelete) return
-    
+
     try {
       const customerId = customerToDelete.customer_id || customerToDelete.id
       await axios.patch(`https://visa-app-1-q9ex.onrender.com/soft_delete_customer_via_id/${customerId}`, {}, {
@@ -133,14 +138,14 @@ const Profile = () => {
           'Content-Type': 'application/json',
         }
       })
-      
+
       // Refetch data from server to ensure UI is properly updated
       await fetchCustomerData()
-      
+
       setMessage('✅ Customer deleted successfully!')
       setShowDeleteModal(false)
       setCustomerToDelete(null)
-      
+
       setTimeout(() => setMessage(''), 3000)
     } catch (error) {
       console.error('Error deleting customer:', error)
@@ -201,11 +206,10 @@ const Profile = () => {
 
         {/* Success/Error Message */}
         {message && (
-          <div className={`p-3 mb-4 rounded-lg text-center text-sm font-medium ${
-            message.includes('✅') 
-              ? 'bg-green-50 text-green-700 border border-green-200' 
+          <div className={`p-3 mb-4 rounded-lg text-center text-sm font-medium ${message.includes('✅')
+              ? 'bg-green-50 text-green-700 border border-green-200'
               : 'bg-red-50 text-red-700 border border-red-200'
-          }`}>
+            }`}>
             {message}
           </div>
         )}
@@ -225,11 +229,11 @@ const Profile = () => {
             <div className="space-y-4">
               {customerData.map((customer, index) => {
                 const isExpanded = expandedUserId === (customer.customer_id || index)
-                
+
                 return (
                   <div key={customer.customer_id || index} className="bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
                     {/* Main Card */}
-                    <div 
+                    <div
                       onClick={() => setExpandedUserId(isExpanded ? null : (customer.customer_id || index))}
                       className="p-4 cursor-pointer"
                     >
@@ -248,7 +252,7 @@ const Profile = () => {
                               </p>
                             </div>
                           </div>
-                          
+
                           <div className="flex gap-2 flex-wrap">
                             <span className="bg-slate-800 text-white px-2 py-1 text-xs font-medium rounded">
                               {customer.h1b_status || 'Active'}
@@ -261,7 +265,7 @@ const Profile = () => {
                             </span>
                           </div>
                         </div>
-                        
+
                         {/* Action Icons */}
                         <div className="flex items-center gap-2">
                           <button
@@ -271,7 +275,7 @@ const Profile = () => {
                           >
                             <Edit className="w-4 h-4 text-slate-600" />
                           </button>
-                          
+
                           <button
                             onClick={(e) => handleDelete(customer, e)}
                             className="p-2 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
@@ -279,10 +283,9 @@ const Profile = () => {
                           >
                             <Trash2 className="w-4 h-4 text-red-600" />
                           </button>
-                          
-                          <div className={`text-slate-400 transition-transform duration-300 ${
-                            isExpanded ? 'rotate-180' : 'rotate-0'
-                          }`}>
+
+                          <div className={`text-slate-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : 'rotate-0'
+                            }`}>
                             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                               <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                             </svg>
@@ -290,7 +293,7 @@ const Profile = () => {
                         </div>
                       </div>
                     </div>
-                    
+
                     {/* Expanded Content */}
                     {isExpanded && (
                       <div className="bg-slate-50 p-4 border-t border-slate-200" style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
@@ -302,23 +305,23 @@ const Profile = () => {
                             </h4>
                             <div className="space-y-2">
                               <div className="flex justify-between py-1 border-b border-slate-100">
-                                <span className="font-medium text-slate-500 text-xs">Name:</span> 
+                                <span className="font-medium text-slate-500 text-xs">Name:</span>
                                 <span className="text-slate-800 text-xs">{customer.first_name || 'N/A'} {customer.last_name || ''}</span>
                               </div>
                               <div className="flex justify-between py-1 border-b border-slate-100">
-                                <span className="font-medium text-slate-500 text-xs">DOB:</span> 
+                                <span className="font-medium text-slate-500 text-xs">DOB:</span>
                                 <span className="text-slate-800 text-xs">{customer.dob || 'N/A'}</span>
                               </div>
                               <div className="flex justify-between py-1 border-b border-slate-100">
-                                <span className="font-medium text-slate-500 text-xs">Sex:</span> 
+                                <span className="font-medium text-slate-500 text-xs">Sex:</span>
                                 <span className="text-slate-800 text-xs">{customer.sex || 'N/A'}</span>
                               </div>
                               <div className="flex justify-between py-1 border-b border-slate-100">
-                                <span className="font-medium text-slate-500 text-xs">Marital Status:</span> 
+                                <span className="font-medium text-slate-500 text-xs">Marital Status:</span>
                                 <span className="text-slate-800 text-xs">{customer.marital_status || 'N/A'}</span>
                               </div>
                               <div className="flex justify-between py-1">
-                                <span className="font-medium text-slate-500 text-xs">Emergency Contact:</span> 
+                                <span className="font-medium text-slate-500 text-xs">Emergency Contact:</span>
                                 <span className="text-slate-800 text-xs">{customer.emergency_contact_name || 'N/A'}</span>
                               </div>
                             </div>
@@ -331,19 +334,19 @@ const Profile = () => {
                             </h4>
                             <div className="space-y-2">
                               <div className="flex justify-between py-1 border-b border-slate-100">
-                                <span className="font-medium text-slate-500 text-xs">Street:</span> 
+                                <span className="font-medium text-slate-500 text-xs">Street:</span>
                                 <span className="text-slate-800 text-xs">{customer.street_name || 'N/A'}</span>
                               </div>
                               <div className="flex justify-between py-1 border-b border-slate-100">
-                                <span className="font-medium text-slate-500 text-xs">City:</span> 
+                                <span className="font-medium text-slate-500 text-xs">City:</span>
                                 <span className="text-slate-800 text-xs">{customer.city || 'N/A'}</span>
                               </div>
                               <div className="flex justify-between py-1 border-b border-slate-100">
-                                <span className="font-medium text-slate-500 text-xs">State:</span> 
+                                <span className="font-medium text-slate-500 text-xs">State:</span>
                                 <span className="text-slate-800 text-xs">{customer.state || 'N/A'}</span>
                               </div>
                               <div className="flex justify-between py-1">
-                                <span className="font-medium text-slate-500 text-xs">ZIP:</span> 
+                                <span className="font-medium text-slate-500 text-xs">ZIP:</span>
                                 <span className="text-slate-800 text-xs">{customer.zip || 'N/A'}</span>
                               </div>
                             </div>
@@ -356,27 +359,27 @@ const Profile = () => {
                             </h4>
                             <div className="space-y-2">
                               <div className="flex justify-between py-1 border-b border-slate-100">
-                                <span className="font-medium text-slate-500 text-xs">Client:</span> 
+                                <span className="font-medium text-slate-500 text-xs">Client:</span>
                                 <span className="text-slate-800 text-xs">{customer.client_name || 'N/A'}</span>
                               </div>
                               <div className="flex justify-between py-1 border-b border-slate-100">
-                                <span className="font-medium text-slate-500 text-xs">Title:</span> 
+                                <span className="font-medium text-slate-500 text-xs">Title:</span>
                                 <span className="text-slate-800 text-xs">{customer.lca_title || 'N/A'}</span>
                               </div>
                               <div className="flex justify-between py-1 border-b border-slate-100">
-                                <span className="font-medium text-slate-500 text-xs">Salary:</span> 
+                                <span className="font-medium text-slate-500 text-xs">Salary:</span>
                                 <span className="text-slate-800 font-semibold text-xs">${parseFloat(customer.lca_salary || 0).toLocaleString()}</span>
                               </div>
                               <div className="flex justify-between py-1 border-b border-slate-100">
-                                <span className="font-medium text-slate-500 text-xs">Receipt:</span> 
+                                <span className="font-medium text-slate-500 text-xs">Receipt:</span>
                                 <span className="text-slate-800 text-xs">{customer.receipt_number || 'N/A'}</span>
                               </div>
                               <div className="flex justify-between py-1 border-b border-slate-100">
-                                <span className="font-medium text-slate-500 text-xs">Start Date:</span> 
+                                <span className="font-medium text-slate-500 text-xs">Start Date:</span>
                                 <span className="text-slate-800 text-xs">{customer.h1b_start_date || 'N/A'}</span>
                               </div>
                               <div className="flex justify-between py-1">
-                                <span className="font-medium text-slate-500 text-xs">End Date:</span> 
+                                <span className="font-medium text-slate-500 text-xs">End Date:</span>
                                 <span className="text-slate-800 text-xs">{customer.h1b_end_date || 'N/A'}</span>
                               </div>
                             </div>
@@ -402,7 +405,7 @@ const Profile = () => {
             </div>
           )}
         </div>
-        
+
         {/* Delete Confirmation Modal */}
         {showDeleteModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 backdrop-blur-sm">
@@ -410,15 +413,15 @@ const Profile = () => {
               <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mx-auto mb-4">
                 <Trash2 className="w-6 h-6 text-red-600" />
               </div>
-              
+
               <h3 className="text-base font-semibold text-slate-800 mb-2 text-center">
                 Confirm Deletion
               </h3>
-              
+
               <p className="text-sm text-slate-600 mb-6 text-center">
                 Are you sure you want to delete <strong>{customerToDelete?.first_name} {customerToDelete?.last_name}</strong>? This action cannot be undone.
               </p>
-              
+
               <div className="flex gap-3 justify-center">
                 <button
                   onClick={cancelDelete}
@@ -436,7 +439,7 @@ const Profile = () => {
             </div>
           </div>
         )}
-        
+
       </div>
     </div>
   )

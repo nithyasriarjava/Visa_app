@@ -45,7 +45,7 @@ const ProfileView = () => {
 
   return (
     <div className="max-w-6xl mx-auto p-6">
-      <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">Customer Profiles</h1>
+      <h1 className="text-3xl font-bold text-center mb-8 text-slate-800">Customer Profiles</h1>
       
       {customers.length === 0 ? (
         <div className="text-center text-gray-500">No customers found</div>
@@ -58,8 +58,8 @@ const ProfileView = () => {
                 <h2 className="text-xl font-semibold mb-4 text-orange-600 border-b pb-2">Personal Details</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <span className="font-medium text-gray-600">Name:</span>
-                    <p className="text-gray-800">{customer.firstName} {customer.lastName}</p>
+                    <span className="font-medium text-slate-600">Name:</span>
+                    <p className="text-slate-800">{customer.firstName} {customer.lastName}</p>
                   </div>
                   <div>
                     <span className="font-medium text-gray-600">Date of Birth:</span>
@@ -78,8 +78,8 @@ const ProfileView = () => {
                     <p className="text-gray-800">{customer.phone}</p>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-600">Email:</span>
-                    <p className="text-gray-800">{customer.email}</p>
+                    <span className="font-medium text-slate-600">Email:</span>
+                    <p className="text-slate-800">{customer.email}</p>
                   </div>
                   <div>
                     <span className="font-medium text-gray-600">Emergency Contact:</span>

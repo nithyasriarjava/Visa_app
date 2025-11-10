@@ -128,10 +128,10 @@ const Layout = ({ children }) => {
                 <User className="w-5 h-5 text-white" />
               </div>
               <div className="flex-1">
-                <p className="font-semibold text-blue-800 m-0 text-xs">
+                <p className="font-semibold text-slate-800 m-0 text-xs">
                   {user?.firstName || 'User'} {user?.lastName || ''}
                 </p>
-                <p className="text-xs text-blue-500 m-0 mb-1">
+                <p className="text-xs text-slate-600 m-0 mb-1">
                   {user?.email}
                 </p>
                 <span className={`inline-flex items-center px-2.5 py-1 text-xs rounded-full font-medium
@@ -270,7 +270,7 @@ const Layout = ({ children }) => {
         </div>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-auto bg-gradient-to-br from-slate-50/50 to-blue-50/30" style={{
+        <div className="flex-1 overflow-auto bg-gradient-to-br from-slate-50/50 to-slate-100/30" style={{
           minHeight: 0,
           width: '100%',
           maxWidth: '100%',
@@ -293,9 +293,9 @@ const Layout = ({ children }) => {
             zIndex: 999999
           }}
         >
-          <div className="p-6 border-b border-slate-200/50 bg-gradient-to-r from-blue-50 to-indigo-50">
+          <div className="p-6 border-b border-slate-200/50 bg-gradient-to-r from-slate-50 to-slate-100">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-gradient-to-r from-slate-700 to-slate-800 rounded-lg flex items-center justify-center">
                 <Bell className="w-4 h-4 text-white" />
               </div>
               <h3 className="m-0 text-lg font-bold text-slate-800">Notifications</h3>

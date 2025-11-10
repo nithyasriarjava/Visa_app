@@ -314,7 +314,7 @@ const AdminDashboard = () => {
                         background: 'rgba(255,255,255,0.05)',
                       }}
                     >
-                      <h4 style={{ color: '#93c5fd', fontSize: '14px', marginBottom: '8px' }}>Personal Info</h4>
+                      <h4 style={{ color: '#070707ff', fontSize: '14px', marginBottom: '8px' }}>Personal Info</h4>
                       <p style={{ color: 'white', fontSize: '13px', margin: 0 }}>
                         <b>Phone:</b> {applicant.phone}<br />
                         <b>DOB:</b> {formatDate(applicant.dob)}<br />
