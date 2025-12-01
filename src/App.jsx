@@ -14,6 +14,8 @@ const AppContent = () => {
   const { user, loading } = useAuth()
   const [isLogin, setIsLogin] = useState(true)
 
+
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -40,8 +42,8 @@ const AppContent = () => {
   }
 
   return (
-    <Layout>
-      <Routes>
+    <Routes>
+      <Route element={<Layout />}>
         <Route path="/" element={<Navigate to="/profile" replace />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/visa-apply" element={<VisaApply />} />
@@ -55,8 +57,8 @@ const AppContent = () => {
             )
           }
         />
-      </Routes>
-    </Layout>
+      </Route>
+    </Routes>
   )
 }
 

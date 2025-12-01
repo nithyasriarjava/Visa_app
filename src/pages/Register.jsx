@@ -7,18 +7,10 @@ const Register = ({ setIsLogin }) => {
     email: '',
     password: ''
   })
+  const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const { register, loginWithGoogle } = useAuth()
-
-  const validateForm = () => {
-    const errors = {}
-    if (!formData.email.trim()) errors.email = 'Email is required'
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) errors.email = 'Invalid email format'
-    if (!formData.password) errors.password = 'Password is required'
-    else if (formData.password.length < 6) errors.password = 'Password must be at least 6 characters'
-    return errors
-  }
 
   const handleGoogleSignup = async () => {
     setLoading(true)
@@ -38,27 +30,28 @@ const Register = ({ setIsLogin }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
-    const validationErrors = validateForm()
-    if (Object.keys(validationErrors).length > 0) {
-      setError(Object.values(validationErrors)[0])
-      return
-    }
-
-    setLoading(true)
     setError('')
+    setMessage('')
+    setLoading(true)
 
     try {
       const result = await register(formData.email, formData.password)
+      
       if (result.success) {
-        console.log('✅ Registration successful!')
+        setMessage(result.message)
         setFormData({ email: '', password: '' })
-        setError('📧 Confirmation email sent! Please check your inbox to verify your account before logging in.')
       } else {
-        setError(result.error || 'Registration failed')
+        setError(result.error)
+        
+        // If user already exists, redirect to login after 2 seconds
+        if (result.shouldRedirectToLogin) {
+          setTimeout(() => {
+            setIsLogin(true)
+          }, 2000)
+        }
       }
     } catch (error) {
-      setError('Registration failed: ' + error.message)
+      setError('Registration failed')
     }
 
     setLoading(false)
@@ -153,13 +146,13 @@ const Register = ({ setIsLogin }) => {
                 <p className="text-slate-200 text-sm">Join the future of visa management</p>
               </div>
 
-              {error && (
+              {(error || message) && (
                 <div className={`px-4 py-3 rounded-xl mb-6 backdrop-blur-sm ${
-                  error.includes('📧') 
+                  message 
                     ? 'bg-green-500/10 border border-green-500/20 text-green-300'
                     : 'bg-red-500/10 border border-red-500/20 text-red-300'
                 }`}>
-                  {error}
+                  {message || error}
                 </div>
               )}
 

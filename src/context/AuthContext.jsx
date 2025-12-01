@@ -25,25 +25,26 @@ export const AuthProvider = ({ children }) => {
       setLoading(false)
     })
 
-    // Listen for login/logout changes
+    // Listen for login/logout changes - PERMANENT listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log('Auth event:', event, 'Session:', !!session?.user)
+        
         if (session?.user) {
           const userData = formatUser(session.user)
           setUser(userData)
-
-          // Redirect only after successful sign-in
-          if (event === 'SIGNED_IN') {
-            setTimeout(() => navigate('/profile'), 500)
-          }
-        } else {
+          setLoading(false)
+          // Removed auto navigation to prevent forced redirects
+        } else if (event === 'SIGNED_OUT') {
           setUser(null)
+          setLoading(false)
         }
       }
     )
 
+    // Only cleanup on component unmount - keep listener active
     return () => subscription.unsubscribe()
-  }, [navigate])
+  }, [navigate, user])
 
   // Format user data
   const formatUser = (user) => ({
@@ -57,67 +58,120 @@ export const AuthProvider = ({ children }) => {
     role: user.email?.includes('admin') ? 'admin' : 'user',
   })
 
- // Email-password login (Fixed)
-const login = async (email, password) => {
-  try {
-    console.log('Attempting login with:', email)
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password: password.trim(),
-    })
-
-    if (error) {
-      console.error('Supabase login error:', error.message)
-
-      // Handle known errors clearly
-      if (error.message.includes('Invalid login credentials')) {
-        return { success: false, error: 'Invalid email or password' }
-      }
-      if (error.message.includes('Email not confirmed')) {
-        return { success: false, error: 'Please verify your email before login' }
-      }
-
-      return { success: false, error: error.message }
-    }
-
-    if (data?.user) {
-      const userData = formatUser(data.user)
-      setUser(userData)
-      navigate('/profile')
-      return { success: true }
-    }
-
-    return { success: false, error: 'Login failed — no user data returned' }
-  } catch (error) {
-    console.error('Unexpected login error:', error)
-    return { success: false, error: 'Something went wrong during login' }
+  // Validate form inputs
+  const validateForm = (email, password, isLogin = false) => {
+    if (!email?.trim()) return 'Email required'
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return 'Invalid email format'
+    if (!password?.trim()) return 'Password required'
+    if (!isLogin && password.trim().length < 6) return 'Password minimum 6 characters'
+    return null
   }
-}
 
+  // Email-password login
+  const login = async (email, password) => {
+    const validationError = validateForm(email, password, true)
+    if (validationError) {
+      return { success: false, error: validationError }
+    }
+
+    try {
+      console.log('Attempting login with email:', email.trim())
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password: password.trim(),
+      })
+      console.log('Supabase response:', { user: !!data?.user, session: !!data?.session, error: error?.message })
+
+      if (error) {
+        // Handle specific Supabase auth errors
+        if (error.message.includes('Invalid login credentials')) {
+          // This could be either wrong password or user not found
+          return { success: false, error: 'No account found. Please signup.' }
+        }
+        if (error.message.includes('Email not confirmed') || error.message.includes('email_not_confirmed')) {
+          return { success: false, error: 'Verify email before login' }
+        }
+        if (error.message.includes('Invalid email or password')) {
+          return { success: false, error: 'Incorrect password' }
+        }
+        return { success: false, error: error.message }
+      }
+
+      // Handle successful login with verified email
+      if (data?.user && data?.session) {
+        const userData = formatUser(data.user)
+        setUser(userData)
+        navigate('/profile')
+        return { success: true, error: null, message: 'Login successful' }
+      }
+
+      // Handle unverified email (user exists but no session)
+      if (data?.user && !data?.session) {
+        return { success: false, error: 'Verify email before login' }
+      }
+
+      return { success: false, error: 'Login failed' }
+    } catch (error) {
+      return { success: false, error: 'Login failed' }
+    }
+  }
 
   // Register new user
   const register = async (email, password) => {
+    const validationError = validateForm(email, password, false)
+    if (validationError) {
+      return { success: false, error: validationError }
+    }
+
     try {
-      const { data, error } = await supabase.auth.signUp({ email, password })
+      const { data, error } = await supabase.auth.signUp({ 
+        email: email.trim(), 
+        password: password.trim() 
+      })
       
       if (error) {
         if (error.message.includes('User already registered') || 
-            error.message.includes('already registered') ||
-            error.message.includes('Email address is already registered')) {
-          return { success: false, error: 'This email already exists' }
+            error.message.includes('already registered')) {
+          return { success: false, error: 'Account exists, please login', shouldRedirectToLogin: true }
         }
         return { success: false, error: error.message }
       }
       
-      // If signup returns user but no session, it's a new user needing confirmation
-      // If it returns both user and session, it's an existing user being signed in
+      // Check if user already exists (Supabase returns user with session for existing users)
       if (data?.user && data?.session) {
-        return { success: false, error: 'This email already exists' }
+        return { success: false, error: 'Account exists, please login', shouldRedirectToLogin: true }
       }
       
-      return { success: true }
-    } catch {
+      // New user created successfully (user exists but no session = needs email verification)
+      if (data?.user && !data?.session) {
+        return { success: true, error: null, message: 'Check email & verify' }
+      }
+      
+      return { success: true, error: null, message: 'Check email & verify' }
+    } catch (error) {
       return { success: false, error: 'Registration failed' }
+    }
+  }
+
+  // Password reset
+  const resetPassword = async (email) => {
+    const validationError = validateForm(email, 'dummy', true)
+    if (validationError && !validationError.includes('Password')) {
+      return { success: false, error: validationError }
+    }
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: window.location.origin + '/#/reset-password'
+      })
+      
+      if (error) {
+        return { success: false, error: error.message }
+      }
+      
+      return { success: true, message: 'Password reset email sent!' }
+    } catch (error) {
+      return { success: false, error: 'Failed to send reset email' }
     }
   }
 
@@ -127,10 +181,7 @@ const login = async (email, password) => {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo:
-            process.env.NODE_ENV === 'production'
-              ? 'https://nithyasriarjava.github.io/Visa_app/#/profile'
-              : 'http://localhost:5173/#/profile',
+          redirectTo: window.location.origin,
         },
       })
       if (error) return { success: false, error: error.message }
@@ -143,20 +194,22 @@ const login = async (email, password) => {
   // Logout
   const logout = async () => {
     try {
+      console.log('Logging out...')
       await supabase.auth.signOut()
       setUser(null)
-      localStorage.removeItem('currentUser')
+      setLoading(false)
       navigate('/')
-    } catch {
+    } catch (error) {
+      console.error('Logout error:', error)
       setUser(null)
-      localStorage.removeItem('currentUser')
+      setLoading(false)
       navigate('/')
     }
   }
 
   return (
     <AuthContext.Provider
-      value={{ user, login, register, loginWithGoogle, logout, loading }}
+      value={{ user, login, register, loginWithGoogle, logout, loading, resetPassword }}
     >
       {children}
     </AuthContext.Provider>

@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { User, FileText, Shield, LogOut, Home, Bell, Menu, ChevronLeft, X, Plane, BarChart3, Settings } from 'lucide-react'
 
-const Layout = ({ children }) => {
+const Layout = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const activeTab = location.pathname.slice(1) || 'profile'
+  const activeTab = location.pathname.replace(/^\//, '') || 'profile'
   const { user, logout } = useAuth()
   const [showNotifications, setShowNotifications] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
@@ -160,6 +160,7 @@ const Layout = ({ children }) => {
                     localStorage.removeItem('editingPersonIndex')
                   }
                   navigate(`/${item.id}`)
+                  console.log('navigating to', item.id)
                   if (isMobile) setSidebarOpen(false)
                 }}
                 className={`cursor-pointer transition-all duration-300 flex items-center gap-4 font-medium group
@@ -276,7 +277,7 @@ const Layout = ({ children }) => {
           maxWidth: '100%',
           boxSizing: 'border-box'
         }}>
-          {children}
+          <Outlet />
         </div>
       </div>
       

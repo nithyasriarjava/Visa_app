@@ -9,8 +9,11 @@ const Login = ({ setIsLogin }) => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, loginWithGoogle } = useAuth();
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const { login, loginWithGoogle, resetPassword } = useAuth();
 
   const handleChange = (e) => {
     setFormData({
@@ -22,17 +25,45 @@ const Login = ({ setIsLogin }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setMessage('');
     setLoading(true);
 
     try {
       const result = await login(formData.email, formData.password);
-      if (!result.success) {
-        setError(result.error || 'Login failed');
+      if (result.success) {
+        setMessage(result.message || 'Login successful!');
+        // Navigation is handled in AuthContext
+      } else {
+        setError(result.error);
       }
     } catch (error) {
       setError('Login failed');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async (e) => {
+    e.preventDefault();
+    setError('');
+    setMessage('');
+    
+    if (!resetEmail.trim()) {
+      setError('Please enter your email address');
+      return;
+    }
+
+    try {
+      const result = await resetPassword(resetEmail);
+      if (result.success) {
+        setMessage(result.message);
+        setShowResetPassword(false);
+        setResetEmail('');
+      } else {
+        setError(result.error);
+      }
+    } catch (error) {
+      setError('Failed to send reset email');
     }
   };
 
@@ -112,9 +143,44 @@ const Login = ({ setIsLogin }) => {
                 <p className="text-slate-200 text-sm">Sign in to continue your visa journey</p>
               </div>
 
-              {error && (
-                <div className="bg-red-500/10 border border-red-500/20 text-red-300 px-4 py-3 rounded-xl mb-6 backdrop-blur-sm">
-                  {error}
+              {(error || message) && (
+                <div className={`px-4 py-3 rounded-xl mb-6 backdrop-blur-sm ${
+                  message 
+                    ? 'bg-green-500/10 border border-green-500/20 text-green-300'
+                    : 'bg-red-500/10 border border-red-500/20 text-red-300'
+                }`}>
+                  {message || error}
+                </div>
+              )}
+
+              {showResetPassword && (
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4 mb-6 backdrop-blur-sm">
+                  <h3 className="text-white font-semibold mb-3 text-sm">Reset Password</h3>
+                  <form onSubmit={handlePasswordReset} className="space-y-3">
+                    <input
+                      type="email"
+                      placeholder="Enter your email"
+                      value={resetEmail}
+                      onChange={(e) => setResetEmail(e.target.value)}
+                      className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-slate-300 text-sm"
+                      required
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="submit"
+                        className="flex-1 bg-slate-800 text-white py-2 rounded-lg text-sm font-medium hover:bg-slate-700 transition-colors"
+                      >
+                        Send Reset Email
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowResetPassword(false)}
+                        className="px-4 py-2 text-slate-300 hover:text-white text-sm transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
                 </div>
               )}
 
@@ -202,8 +268,16 @@ const Login = ({ setIsLogin }) => {
                 Continue with Google
               </button>
 
-              {/* Register Link */}
-              <div className="text-center mt-6">
+              {/* Register Link & Password Reset */}
+              <div className="text-center mt-6 space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setShowResetPassword(!showResetPassword)}
+                  className="text-slate-300 hover:text-slate-200 text-sm transition-colors"
+                >
+                  Forgot your password?
+                </button>
+                
                 <p className="text-slate-200 text-sm">
                   Don't have an account?{' '}
                   <button 
