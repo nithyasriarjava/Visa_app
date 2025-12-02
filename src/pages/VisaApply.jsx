@@ -132,11 +132,18 @@ const VisaApply = () => {
       // Clear any leftover editing data and ensure fresh form
       localStorage.removeItem('editingPersonData')
       localStorage.removeItem('editingPersonIndex')
-      fetchExistingData()
+      if (user?.email) {
+        fetchExistingData()
+      }
     }
-  }, [user])
+  }, [])
 
   const fetchExistingData = async () => {
+    if (!user?.email) {
+      console.log('No user email available, skipping fetch')
+      return
+    }
+    
     try {
       const response = await axios.get('https://visa-app-1-q9ex.onrender.com/customers', {
         headers: {
@@ -302,6 +309,9 @@ const VisaApply = () => {
       // Clear editing state if it exists
       localStorage.removeItem('editingPersonData')
       localStorage.removeItem('editingPersonIndex')
+      
+      // Trigger notification refresh for updated customer data
+      window.dispatchEvent(new CustomEvent('customerUpdated'))
       
       setLoading(false)
       

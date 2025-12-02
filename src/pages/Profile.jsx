@@ -8,11 +8,12 @@ const Profile = () => {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [customerData, setCustomerData] = useState([])
-  const [expandedUserId, setExpandedUserId] = useState(null)
+
   const [loading, setLoading] = useState(true)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [customerToDelete, setCustomerToDelete] = useState(null)
   const [message, setMessage] = useState('')
+  const [expandedUserId, setExpandedUserId] = useState(null)
 
   useEffect(() => {
     if (user?.email) fetchCustomerData()
@@ -63,9 +64,6 @@ const Profile = () => {
       setLoading(false)
     } catch (error) {
       console.error('Error fetching customer data:', error)
-      if (error.code === 'ECONNABORTED') {
-        setMessage('⚠️ Dashboard is taking longer to load. Please refresh the page.')
-      }
       setCustomerData([])
       setLoading(false)
     }
@@ -129,6 +127,10 @@ const Profile = () => {
       )
 
       await fetchCustomerData()
+      
+      // Trigger notification refresh
+      window.dispatchEvent(new CustomEvent('customerUpdated'))
+      
       setMessage('✅ Customer deleted successfully!')
       setShowDeleteModal(false)
       setCustomerToDelete(null)
@@ -209,9 +211,9 @@ const Profile = () => {
         <div className="mb-6">
           {customerData.length > 0 ? (
             <>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-bold text-slate-800">Customer Records</h2>
-                <div className="bg-slate-800 text-white px-3 py-1 rounded-md text-xs font-medium">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-slate-800">Customer Records</h2>
+                <div className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium">
                   {customerData.length} Total
                 </div>
               </div>
@@ -222,78 +224,194 @@ const Profile = () => {
                   return (
                     <div
                       key={customer.customer_id || index}
-                      className="bg-white rounded-lg border border-slate-200 shadow-sm hover:shadow-md transition-shadow"
+                      className={`bg-white rounded-xl shadow-lg transition-all duration-300 overflow-hidden ${
+                        isExpanded 
+                          ? 'border-2 border-blue-500 shadow-xl bg-blue-50/30' 
+                          : 'border border-slate-200 hover:shadow-xl hover:border-slate-300'
+                      }`}
                     >
-                      {/* Main Card */}
+                      {/* Main Card Header */}
                       <div
-                        onClick={() =>
-                          setExpandedUserId(
-                            isExpanded ? null : customer.customer_id || index
-                          )
-                        }
-                        className="p-4 cursor-pointer"
+                        onClick={() => {
+                          // Close other cards and open this one (true accordion behavior)
+                          setExpandedUserId(isExpanded ? null : customer.customer_id || index)
+                        }}
+                        className="p-6 cursor-pointer hover:bg-slate-50/50 transition-colors flex items-center justify-between"
                       >
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-3">
-                              <div className="w-10 h-10 bg-slate-700 rounded-lg flex items-center justify-center text-white text-sm font-bold">
-                                {(customer.first_name || 'U')
-                                  .charAt(0)
-                                  .toUpperCase()}
-                              </div>
-                              <div>
-                                <h3 className="text-sm font-bold text-slate-800">
-                                  {customer.first_name || ''}{' '}
-                                  {customer.last_name || ''}
-                                </h3>
-                                <p className="text-xs text-slate-600">
-                                  {customer.email || customer.login_email || ''}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="flex gap-2 flex-wrap">
-                              <span className="bg-slate-800 text-white px-2 py-1 text-xs font-medium rounded">
-                                {customer.h1b_status || 'Active'}
-                              </span>
-                              <span className="bg-slate-700 text-white px-2 py-1 text-xs font-medium rounded">
-                                {customer.lca_title || 'Software Engineer'}
-                              </span>
-                              <span className="bg-slate-600 text-white px-2 py-1 text-xs font-medium rounded">
-                                {customer.phone || ''}
-                              </span>
-                            </div>
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-gradient-to-br from-slate-700 to-slate-900 rounded-xl flex items-center justify-center text-white text-lg font-bold shadow-md">
+                            {(customer.first_name || 'U').charAt(0).toUpperCase()}
                           </div>
-
-                          {/* Action Icons */}
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={e => handleEdit(customer, e)}
-                              className="p-2 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
-                              title="Edit Customer"
+                          <div>
+                            <h3 className="text-lg font-bold text-slate-800">
+                              {customer.first_name || ''} {customer.last_name || ''}
+                            </h3>
+                            <p className="text-sm text-slate-600">
+                              {customer.email || customer.login_email || ''}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {/* Edit/Delete Icons - Always Visible */}
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={e => handleEdit(customer, e)}
+                            className="p-3 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors group cursor-pointer"
+                            title="Edit Customer"
+                          >
+                            <Edit className="w-5 h-5 text-blue-600 group-hover:text-blue-700" />
+                          </button>
+                          <button
+                            onClick={e => handleDelete(customer, e)}
+                            className="p-3 bg-red-50 hover:bg-red-100 rounded-lg transition-colors group cursor-pointer"
+                            title="Delete Customer"
+                          >
+                            <Trash2 className="w-5 h-5 text-red-600 group-hover:text-red-700" />
+                          </button>
+                          
+                          {/* Expand/Collapse Arrow */}
+                          <div className="ml-2">
+                            <svg 
+                              className={`w-5 h-5 text-slate-400 transition-transform duration-300 ${
+                                isExpanded ? 'rotate-180' : ''
+                              }`} 
+                              fill="none" 
+                              stroke="currentColor" 
+                              viewBox="0 0 24 24"
                             >
-                              <Edit className="w-4 h-4 text-slate-600" />
-                            </button>
-
-                            <button
-                              onClick={e => handleDelete(customer, e)}
-                              className="p-2 bg-red-50 hover:bg-red-100 rounded-md transition-colors"
-                              title="Delete Customer"
-                            >
-                              <Trash2 className="w-4 h-4 text-red-600" />
-                            </button>
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
                           </div>
                         </div>
                       </div>
 
-                      {/* Expanded Section */}
+                      {/* Accordion Content */}
                       {isExpanded && (
-                        <div className="bg-slate-50 p-4 border-t border-slate-200 animate-fadeIn">
-                          <p className="text-xs text-slate-600">
-                            Client: {customer.client_name || 'N/A'} | Start Date:{' '}
-                            {customer.h1b_start_date || 'N/A'} | End Date:{' '}
-                            {customer.h1b_end_date || 'N/A'}
-                          </p>
+                        <div className="border-t border-slate-200 bg-slate-50/50 p-6 animate-in slide-in-from-top-2 duration-300">
+                          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                            
+                            {/* Personal Details Section */}
+                            <div className="bg-white rounded-lg p-5 shadow-sm border border-slate-200">
+                              <h4 className="text-sm font-bold text-slate-700 mb-4 pb-2 border-b border-slate-200 uppercase tracking-wide">
+                                Personal Details
+                              </h4>
+                              <div className="space-y-3 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500 font-medium">First Name:</span>
+                                  <span className="text-slate-800 font-semibold">{customer.first_name || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500 font-medium">Last Name:</span>
+                                  <span className="text-slate-800 font-semibold">{customer.last_name || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500 font-medium">DOB:</span>
+                                  <span className="text-slate-800 font-semibold">{customer.dob || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500 font-medium">Sex:</span>
+                                  <span className="text-slate-800 font-semibold">{customer.sex || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500 font-medium">Marital Status:</span>
+                                  <span className="text-slate-800 font-semibold">{customer.marital_status || 'N/A'}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Address Details Section */}
+                            <div className="bg-white rounded-lg p-5 shadow-sm border border-slate-200">
+                              <h4 className="text-sm font-bold text-slate-700 mb-4 pb-2 border-b border-slate-200 uppercase tracking-wide">
+                                Address
+                              </h4>
+                              <div className="space-y-3 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500 font-medium">Street:</span>
+                                  <span className="text-slate-800 font-semibold">{customer.street_name || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500 font-medium">City:</span>
+                                  <span className="text-slate-800 font-semibold">{customer.city || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500 font-medium">State:</span>
+                                  <span className="text-slate-800 font-semibold">{customer.state || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500 font-medium">Zip:</span>
+                                  <span className="text-slate-800 font-semibold">{customer.zip || 'N/A'}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* H1B / Client Details Section */}
+                            <div className="bg-white rounded-lg p-5 shadow-sm border border-slate-200">
+                              <h4 className="text-sm font-bold text-slate-700 mb-4 pb-2 border-b border-slate-200 uppercase tracking-wide">
+                                H1B / Client Details
+                              </h4>
+                              <div className="space-y-3 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500 font-medium">Client Name:</span>
+                                  <span className="text-slate-800 font-semibold">{customer.client_name || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500 font-medium">Client Street:</span>
+                                  <span className="text-slate-800 font-semibold">{customer.client_street_name || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500 font-medium">Client City:</span>
+                                  <span className="text-slate-800 font-semibold">{customer.client_city || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500 font-medium">Client State:</span>
+                                  <span className="text-slate-800 font-semibold">{customer.client_state || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500 font-medium">Client Zip:</span>
+                                  <span className="text-slate-800 font-semibold">{customer.client_zip || 'N/A'}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Emergency Contact Section */}
+                            <div className="bg-white rounded-lg p-5 shadow-sm border border-slate-200">
+                              <h4 className="text-sm font-bold text-slate-700 mb-4 pb-2 border-b border-slate-200 uppercase tracking-wide">
+                                Emergency Contact
+                              </h4>
+                              <div className="space-y-3 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500 font-medium">Name:</span>
+                                  <span className="text-slate-800 font-semibold">{customer.emergency_contact_name || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500 font-medium">Phone:</span>
+                                  <span className="text-slate-800 font-semibold">{customer.emergency_contact_phone || 'N/A'}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Start & End Dates Section */}
+                            <div className="bg-white rounded-lg p-5 shadow-sm border border-slate-200">
+                              <h4 className="text-sm font-bold text-slate-700 mb-4 pb-2 border-b border-slate-200 uppercase tracking-wide">
+                                Start & End Dates
+                              </h4>
+                              <div className="space-y-3 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500 font-medium">H1B Start:</span>
+                                  <span className="text-slate-800 font-semibold">{customer.h1b_start_date || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500 font-medium">H1B End:</span>
+                                  <span className="text-slate-800 font-semibold">{customer.h1b_end_date || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-500 font-medium">Employment Start:</span>
+                                  <span className="text-slate-800 font-semibold">{customer.employment_start_date || 'N/A'}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                          </div>
                         </div>
                       )}
                     </div>
@@ -331,13 +449,13 @@ const Profile = () => {
               <div className="flex gap-3 justify-center">
                 <button
                   onClick={cancelDelete}
-                  className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={confirmDelete}
-                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors cursor-pointer"
                 >
                   Delete
                 </button>

@@ -7,6 +7,7 @@ import Register from './pages/Register'
 import Profile from './pages/Profile'
 import VisaApply from './pages/VisaApply'
 import AdminDashboard from './pages/AdminDashboard'
+import CustomerDetail from './pages/CustomerDetail'
 
 import './App.css'
 
@@ -46,6 +47,7 @@ const AppContent = () => {
       <Route element={<Layout />}>
         <Route path="/" element={<Navigate to="/profile" replace />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/profile/customer/:id" element={<CustomerDetail />} />
         <Route path="/visa-apply" element={<VisaApply />} />
         <Route
           path="/admin"
