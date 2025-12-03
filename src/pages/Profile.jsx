@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { User, Edit, Trash2 } from 'lucide-react'
+import { User, Edit, Trash2, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 
@@ -37,11 +37,17 @@ const Profile = () => {
         return
       }
 
+      let X = { 'Content-Type': 'application/json','Authorization': `Bearer ${localStorage.getItem('token')}` }
+
+      console.log('header local storage:', localStorage.getItem('token'))
+      console.log("header:", X)
+
       const response = await axios.get(
         `https://visa-app-bu3x.onrender.com/h1b_customer/by_login_email/${user.email}`,
-        { headers: { 'Content-Type': 'application/json' }, timeout: 10000 }
+        { headers: X, timeout: 10000 }
       )
 
+      
       console.log('API Response received:', response.data)
 
       let customerArray = []

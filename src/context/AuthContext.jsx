@@ -21,6 +21,7 @@ export const AuthProvider = ({ children }) => {
       if (session?.user) {
         const userData = formatUser(session.user)
         setUser(userData)
+        localStorage.setItem('token', session.access_token)
       }
       setLoading(false)
     })
@@ -33,10 +34,12 @@ export const AuthProvider = ({ children }) => {
         if (session?.user) {
           const userData = formatUser(session.user)
           setUser(userData)
+          localStorage.setItem('token', session.access_token)
           setLoading(false)
           // Removed auto navigation to prevent forced redirects
         } else if (event === 'SIGNED_OUT') {
           setUser(null)
+          localStorage.removeItem('token')
           setLoading(false)
         }
       }
@@ -101,6 +104,7 @@ export const AuthProvider = ({ children }) => {
       if (data?.user && data?.session) {
         const userData = formatUser(data.user)
         setUser(userData)
+        localStorage.setItem('token', data.session.access_token)
         navigate('/profile')
         return { success: true, error: null, message: 'Login successful' }
       }
@@ -197,11 +201,13 @@ export const AuthProvider = ({ children }) => {
     try {
       console.log('Logging out...')
       await supabase.auth.signOut()
+      localStorage.removeItem('token')
       setUser(null)
       setLoading(false)
       navigate('/')
     } catch (error) {
       console.error('Logout error:', error)
+      localStorage.removeItem('token')
       setUser(null)
       setLoading(false)
       navigate('/')

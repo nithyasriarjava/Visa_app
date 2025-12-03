@@ -15,8 +15,11 @@ const ProfileView = () => {
       const response = await axios.get('https://visa-app-bu3x.onrender.com/customers', {
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       })
+      console.log('header local storage:', localStorage.getItem('token'))
+      console.log("header:", headers)
       setCustomers(response.data)
     } catch (error) {
       setError('Failed to fetch customer data')
