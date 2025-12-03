@@ -63,7 +63,6 @@ const Profile = () => {
       setCustomerData(activeCustomers)
       
       // Send data to Layout for notifications
-      console.log('📡 Dispatching profileDataUpdated event with', activeCustomers.length, 'users')
       window.dispatchEvent(new CustomEvent('profileDataUpdated', {
         detail: activeCustomers
       }))

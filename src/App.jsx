@@ -1,35 +1,37 @@
-import React, { useState } from "react";
-import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "./context/AuthContext";
-import Layout from "./components/Layout";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Profile from "./pages/Profile";
-import VisaApply from "./pages/VisaApply";
-import AdminDashboard from "./pages/AdminDashboard";
-import CustomerDetail from "./pages/CustomerDetail";
+import React, { useState } from 'react'
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider, useAuth } from './context/AuthContext'
+import Layout from './components/Layout'
+import Login from './pages/Login'
+import Register from './pages/Register'
+import Profile from './pages/Profile'
+import VisaApply from './pages/VisaApply'
+import AdminDashboard from './pages/AdminDashboard'
+import CustomerDetail from './pages/CustomerDetail'
 
-import "./App.css";
+import './App.css'
 
 const AppContent = () => {
-  const { user, loading } = useAuth();
-  const [isLogin, setIsLogin] = useState(true);
+  const { user, loading } = useAuth()
+  const [isLogin, setIsLogin] = useState(true)
+
+
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div
           style={{
-            width: "40px",
-            height: "40px",
-            border: "4px solid #e2e8f0",
-            borderTop: "4px solid #3b82f6",
-            borderRadius: "50%",
-            animation: "spin 1s linear infinite",
+            width: '40px',
+            height: '40px',
+            border: '4px solid #e2e8f0',
+            borderTop: '4px solid #3b82f6',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
           }}
         ></div>
       </div>
-    );
+    )
   }
 
   if (!user) {
@@ -37,7 +39,7 @@ const AppContent = () => {
       <Login setIsLogin={setIsLogin} />
     ) : (
       <Register setIsLogin={setIsLogin} />
-    );
+    )
   }
 
   return (
@@ -50,7 +52,7 @@ const AppContent = () => {
         <Route
           path="/admin"
           element={
-            user.role === "admin" ? (
+            user.role === 'admin' ? (
               <AdminDashboard />
             ) : (
               <Navigate to="/profile" replace />
@@ -59,17 +61,17 @@ const AppContent = () => {
         />
       </Route>
     </Routes>
-  );
-};
+  )
+}
 
 function App() {
   return (
-    <HashRouter>
+    <Router>
       <AuthProvider>
         <AppContent />
       </AuthProvider>
-    </HashRouter>
-  );
+    </Router>
+  )
 }
 
-export default App;
+export default App
