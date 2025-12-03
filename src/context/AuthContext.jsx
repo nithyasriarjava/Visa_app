@@ -175,21 +175,22 @@ export const AuthProvider = ({ children }) => {
     }
   }
 
-  // Google login/signup
-  const loginWithGoogle = async () => {
-    try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin,
-        },
-      })
-      if (error) return { success: false, error: error.message }
-      return { success: true }
-    } catch {
-      return { success: false, error: 'Google authentication failed' }
-    }
+ const loginWithGoogle = async () => {
+  try {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: "https://nithyasriarjava.github.io/Visa_app/",
+      },
+    });
+
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch {
+    return { success: false, error: "Google authentication failed" };
   }
+};
+
 
   // Logout
   const logout = async () => {
