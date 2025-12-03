@@ -65,124 +65,64 @@ const Layout = () => {
 
   // Fetch users for notifications
   const fetchNotificationUsers = async () => {
-    console.log('🔔 Starting notification fetch for user:', user?.email)
-    
     if (!user?.email) {
-      console.log('❌ No user email, setting empty notifications')
       setNotificationUsers([])
       return
     }
 
     try {
-      const timestamp = new Date().getTime()
-      const response = await fetch(`https://visa-app-1-q9ex.onrender.com/h1b_customer/by_login_email/${user.email}?t=${timestamp}`, {
+      const response = await fetch(`https://visa-app-1-q9ex.onrender.com/h1b_customer/by_login_email/${user.email}`, {
         headers: {
           'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
+          'Pragma': 'no-cache'
         }
       })
       const data = await response.json()
-      console.log('📡 Raw API response:', data)
 
-      // Handle both array and single object responses
-      let users = []
-      if (Array.isArray(data)) {
-        users = data
-      } else if (data && typeof data === 'object') {
-        users = [data]
-      }
-      
-      console.log('👥 Parsed users array:', users.length, 'users')
+      let users = Array.isArray(data) ? data : (data ? [data] : [])
       
       if (users.length === 0) {
-        console.log('❌ No users in API response')
         setNotificationUsers([])
         return
       }
 
-      const now = new Date()
-      const tenDaysInMs = 10 * 24 * 60 * 60 * 1000
-      const tenDaysFromNow = new Date(now.getTime() + tenDaysInMs)
-      const tenDaysAgo = new Date(now.getTime() - tenDaysInMs)
-      
-      console.log('📅 Date range:', tenDaysAgo.toISOString().split('T')[0], 'to', tenDaysFromNow.toISOString().split('T')[0])
+      const validUsers = users.filter(user => {
+        // Check status - must be "Active" (case-insensitive)
+        const status = (user.h1b_status || '').toString().toLowerCase().trim()
+        if (status !== 'active') return false
 
-      const validUsers = []
-      
-      users.forEach((user, index) => {
-        console.log(`\n🔍 Checking user ${index + 1}:`, user.first_name || user.firstName, user.last_name || user.lastName)
+        // Get dates from all possible backend field variations
+        const startDateStr = user.H1B_start_date || user.h1b_start_date || user.startDate
+        const endDateStr = user.H1B_end_date || user.h1b_end_date || user.endDate
         
-        // Check status - handle all possible field names and cases
-        const statusField = user.H1B_status || user.h1b_status || user.status || ''
-        const status = statusField.toString().toLowerCase().trim()
-        console.log('   Status check:', statusField, '→', status)
+        // Must have at least one valid date
+        const hasStartDate = startDateStr && !isNaN(new Date(startDateStr).getTime())
+        const hasEndDate = endDateStr && !isNaN(new Date(endDateStr).getTime())
         
-        if (status !== 'active') {
-          console.log('   ❌ Not active, skipping')
-          return
-        }
-        
-        console.log('   ✅ Status is active')
-
-        // Get dates - handle all possible field names
-        const startDateStr = user.h1b_start_date || user.startDate || ''
-        const endDateStr = user.h1b_end_date || user.endDate || ''
-        
-        console.log('   Dates:', { start: startDateStr, end: endDateStr })
-        
-        if (!startDateStr && !endDateStr) {
-          console.log('   ❌ No dates available, skipping')
-          return
-        }
-
-        let hasValidDate = false
-
-        // Check start date if exists
-        if (startDateStr) {
-          const startDate = new Date(startDateStr)
-          console.log('   Start date parsed:', startDate)
-          if (!isNaN(startDate.getTime())) {
-            const inRange = startDate >= tenDaysAgo && startDate <= tenDaysFromNow
-            console.log('   Start date in range:', inRange)
-            if (inRange) {
-              hasValidDate = true
-            }
-          } else {
-            console.log('   ❌ Invalid start date')
-          }
-        }
-
-        // Check end date if exists
-        if (endDateStr) {
-          const endDate = new Date(endDateStr)
-          console.log('   End date parsed:', endDate)
-          if (!isNaN(endDate.getTime())) {
-            const inRange = endDate >= tenDaysAgo && endDate <= tenDaysFromNow
-            console.log('   End date in range:', inRange)
-            if (inRange) {
-              hasValidDate = true
-            }
-          } else {
-            console.log('   ❌ Invalid end date')
-          }
-        }
-
-        if (hasValidDate) {
-          console.log('   ✅ User has valid date, adding to notifications')
-          validUsers.push(user)
-        } else {
-          console.log('   ❌ No valid dates in range, skipping')
-        }
+        return hasStartDate || hasEndDate
       })
 
-      console.log('🎯 Final valid users for notifications:', validUsers.length)
       setNotificationUsers(validUsers)
       
     } catch (error) {
-      console.error('❌ Error fetching notification users:', error)
+      console.error('Error fetching notification users:', error)
       setNotificationUsers([])
     }
+  }
+
+  // Calculate days remaining/passed for a date
+  const calculateDays = (dateStr) => {
+    if (!dateStr) return null
+    const date = new Date(dateStr)
+    if (isNaN(date.getTime())) return null
+    
+    const now = new Date()
+    const diffTime = date.getTime() - now.getTime()
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    
+    if (diffDays > 0) return `${diffDays} days left`
+    if (diffDays < 0) return `${Math.abs(diffDays)} days ago`
+    return 'Today'
   }
 
   useEffect(() => {
@@ -463,18 +403,34 @@ const Layout = () => {
             </div>
           </div>
           <div className="max-h-80 overflow-y-auto">
-            {notificationUsers && notificationUsers.length > 0 ? (
+            {notificationUsers.length > 0 ? (
               <div className="p-4">
-                {notificationUsers.map((user, index) => (
-                  <div key={user.customer_id || user.id || index} className="p-3 border-b border-slate-200 last:border-b-0">
-                    <p className="text-sm font-medium text-slate-800">
-                      {(user.first_name || user.firstName || '')} {(user.last_name || user.lastName || '')}
-                    </p>
-                    <p className="text-xs text-slate-600">
-                      H1B: {user.h1b_start_date || 'N/A'} - {user.h1b_end_date || 'N/A'}
-                    </p>
-                  </div>
-                ))}
+                {notificationUsers.map((user, index) => {
+                  const firstName = user.first_name || ''
+                  const lastName = user.last_name || ''
+                  const startDate = user.H1B_start_date || user.h1b_start_date || user.startDate
+                  const endDate = user.H1B_end_date || user.h1b_end_date || user.endDate
+                  
+                  return (
+                    <div key={user.customer_id || user.id || index} className="p-3 border-b border-slate-200 last:border-b-0">
+                      <p className="text-sm font-medium text-slate-800 mb-1">
+                        {firstName} {lastName}
+                      </p>
+                      <div className="text-xs text-slate-600 space-y-1">
+                        {startDate && (
+                          <p className="mb-1">
+                            Start: {startDate} ({calculateDays(startDate)})
+                          </p>
+                        )}
+                        {endDate && (
+                          <p>
+                            End: {endDate} ({calculateDays(endDate)})
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             ) : (
               <div className="p-8 text-center">
