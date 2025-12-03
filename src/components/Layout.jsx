@@ -63,88 +63,74 @@ const Layout = () => {
     }
   }, [showNotifications, showSettings])
 
-  // Fetch users for notifications
-  const fetchNotificationUsers = async () => {
-    if (!user?.email) {
-      setNotificationUsers([])
-      return
-    }
-
-    try {
-      const response = await fetch(`https://visa-app-1-q9ex.onrender.com/h1b_customer/by_login_email/${user.email}`, {
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache'
-        }
-      })
-      const data = await response.json()
-
-      let users = Array.isArray(data) ? data : (data ? [data] : [])
+  // Listen for profile data updates
+  useEffect(() => {
+    const handleProfileDataUpdate = (event) => {
+      const profileData = event.detail
+      console.log('🔔 Profile data received in Layout:', profileData)
       
-      if (users.length === 0) {
+      if (profileData && profileData.length > 0) {
+        console.log('📊 Processing', profileData.length, 'users for notifications')
+        
+        const validUsers = profileData.filter(u => {
+          console.log('👤 Checking user:', u.first_name, u.last_name)
+          console.log('   Status:', u.h1b_status)
+          console.log('   Start:', u.h1b_start_date)
+          console.log('   End:', u.h1b_end_date)
+          
+          const status = (u.h1b_status || "").toLowerCase().trim()
+          console.log('   Normalized status:', status)
+          
+          if (status !== "active") {
+            console.log('   ❌ Not active')
+            return false
+          }
+
+          const start = u.h1b_start_date
+          const end = u.h1b_end_date
+
+          const hasStart = start && !isNaN(new Date(start).getTime())
+          const hasEnd = end && !isNaN(new Date(end).getTime())
+          
+          console.log('   Valid start:', hasStart)
+          console.log('   Valid end:', hasEnd)
+          
+          const isValid = hasStart || hasEnd
+          console.log('   ✅ User valid:', isValid)
+
+          return isValid
+        })
+        
+        console.log('🎯 Final valid notification users:', validUsers.length)
+        setNotificationUsers(validUsers)
+      } else {
+        console.log('❌ No profile data received')
         setNotificationUsers([])
-        return
       }
-
-      const validUsers = users.filter(user => {
-        // Check status - must be "Active" (case-insensitive)
-        const status = (user.h1b_status || '').toString().toLowerCase().trim()
-        if (status !== 'active') return false
-
-        // Get dates from all possible backend field variations
-        const startDateStr = user.H1B_start_date || user.h1b_start_date || user.startDate
-        const endDateStr = user.H1B_end_date || user.h1b_end_date || user.endDate
-        
-        // Must have at least one valid date
-        const hasStartDate = startDateStr && !isNaN(new Date(startDateStr).getTime())
-        const hasEndDate = endDateStr && !isNaN(new Date(endDateStr).getTime())
-        
-        return hasStartDate || hasEndDate
-      })
-
-      setNotificationUsers(validUsers)
-      
-    } catch (error) {
-      console.error('Error fetching notification users:', error)
-      setNotificationUsers([])
     }
-  }
+
+    console.log('🎧 Layout listening for profileDataUpdated events')
+    window.addEventListener('profileDataUpdated', handleProfileDataUpdate)
+    
+    return () => {
+      window.removeEventListener('profileDataUpdated', handleProfileDataUpdate)
+    }
+  }, [])
 
   // Calculate days remaining/passed for a date
   const calculateDays = (dateStr) => {
     if (!dateStr) return null
     const date = new Date(dateStr)
     if (isNaN(date.getTime())) return null
-    
+
     const now = new Date()
     const diffTime = date.getTime() - now.getTime()
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    
+
     if (diffDays > 0) return `${diffDays} days left`
     if (diffDays < 0) return `${Math.abs(diffDays)} days ago`
     return 'Today'
   }
-
-  useEffect(() => {
-    fetchNotificationUsers()
-  }, [user?.email])
-
-  useEffect(() => {
-    const handleCustomerUpdate = () => fetchNotificationUsers()
-    const handleVisibilityChange = () => {
-      if (!document.hidden) fetchNotificationUsers()
-    }
-
-    window.addEventListener('customerUpdated', handleCustomerUpdate)
-    window.addEventListener('focus', handleCustomerUpdate)
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    
-    return () => {
-      window.removeEventListener('customerUpdated', handleCustomerUpdate)
-      window.removeEventListener('focus', handleCustomerUpdate)
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }
-  }, [user?.email])
 
   const menuItems = [
     { id: 'profile', label: 'Dashboard', icon: BarChart3 },
@@ -156,13 +142,13 @@ const Layout = () => {
     <div className="flex h-screen bg-slate-50 font-sans">
       {/* Under Construction Banner */}
       {underConstructionBanner && (
-  <div className="fixed top-3 left-1/2 -translate-x-1/2
+        <div className="fixed top-3 left-1/2 -translate-x-1/2
                   bg-yellow-500 text-white text-xs font-semibold 
                   px-3 py-1 rounded-md shadow-md 
                   w-auto z-[9999]">
-    Under Construction
-  </div>
-)}
+          Under Construction
+        </div>
+      )}
 
 
       {/* Mobile Overlay */}
@@ -402,17 +388,18 @@ const Layout = () => {
               <h3 className="m-0 text-lg font-bold text-slate-800">Notifications</h3>
             </div>
           </div>
+
           <div className="max-h-80 overflow-y-auto">
             {notificationUsers.length > 0 ? (
               <div className="p-4">
                 {notificationUsers.map((user, index) => {
-                  const firstName = user.first_name || ''
-                  const lastName = user.last_name || ''
-                  const startDate = user.H1B_start_date || user.h1b_start_date || user.startDate
-                  const endDate = user.H1B_end_date || user.h1b_end_date || user.endDate
-                  
+                  const firstName = user.first_name
+                  const lastName = user.last_name
+                  const startDate = user.h1b_start_date
+                  const endDate = user.h1b_end_date
+
                   return (
-                    <div key={user.customer_id || user.id || index} className="p-3 border-b border-slate-200 last:border-b-0">
+                    <div key={user.customer_id || index} className="p-3 border-b border-slate-200 last:border-b-0">
                       <p className="text-sm font-medium text-slate-800 mb-1">
                         {firstName} {lastName}
                       </p>
@@ -444,6 +431,7 @@ const Layout = () => {
           </div>
         </div>
       )}
+
 
       {/* Settings Popup */}
       {showSettings && (
