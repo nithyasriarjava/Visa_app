@@ -38,7 +38,7 @@ const Profile = () => {
       }
 
       const response = await axios.get(
-        `https://visa-app-1-q9ex.onrender.com/h1b_customer/by_login_email/${user.email}`,
+        `https://visa-app-bu3x.onrender.com/h1b_customer/by_login_email/${user.email}`,
         { headers: { 'Content-Type': 'application/json' }, timeout: 10000 }
       )
 
@@ -127,7 +127,7 @@ const Profile = () => {
     try {
       const customerId = customerToDelete.customer_id || customerToDelete.id
       await axios.patch(
-        `https://visa-app-1-q9ex.onrender.com/soft_delete_customer_via_id/${customerId}`,
+        `https://visa-app-bu3x.onrender.com/soft_delete_customer_via_id/${customerId}`,
         {},
         { headers: { 'Content-Type': 'application/json' } }
       )

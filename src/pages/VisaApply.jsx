@@ -145,7 +145,7 @@ const VisaApply = () => {
     }
     
     try {
-      const response = await axios.get('https://visa-app-1-q9ex.onrender.com/customers', {
+      const response = await axios.get('https://visa-app-bu3x.onrender.com/customers', {
         headers: {
           'Content-Type': 'application/json',
         }
@@ -278,8 +278,8 @@ const VisaApply = () => {
       // Check if we're in editing mode
       const isEditing = existingData?.isEditing && existingData?.customerId
       const apiUrl = isEditing 
-        ? `https://visa-app-1-q9ex.onrender.com/update_customer_by_id/${existingData.customerId}`
-        : 'https://visa-app-1-q9ex.onrender.com/h1b_customer/create'
+        ? `https://visa-app-bu3x.onrender.com/update_customer_by_id/${existingData.customerId}`
+        : 'https://visa-app-bu3x.onrender.com/h1b_customer/create'
       const method = isEditing ? 'put' : 'post'
 
       console.log('=== FINAL API PAYLOAD ===')

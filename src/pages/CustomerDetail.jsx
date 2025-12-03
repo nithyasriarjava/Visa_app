@@ -23,7 +23,7 @@ const CustomerDetail = () => {
       }
 
       const response = await axios.get(
-        `https://visa-app-1-q9ex.onrender.com/h1b_customer/by_login_email/${user.email}`,
+        `https://visa-app-bu3x.onrender.com/h1b_customer/by_login_email/${user.email}`,
         { headers: { 'Content-Type': 'application/json' } }
       )
 

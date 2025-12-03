@@ -5,7 +5,7 @@ const ApiTest = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const baseUrl = "https://visa-app-1-q9ex.onrender.com/customers"
+  const baseUrl = "https://visa-app-bu3x.onrender.com/customers"
 
   useEffect(() => {
     fetchData()

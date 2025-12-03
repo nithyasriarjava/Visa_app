@@ -27,7 +27,7 @@ const AdminDashboard = () => {
 
   const fetchApplicants = async () => {
     try {
-      const response = await axios.get('https://visa-app-1-q9ex.onrender.com/customers', {
+      const response = await axios.get('https://visa-app-bu3x.onrender.com/customers', {
         headers: {
           'Content-Type': 'application/json',
         }
@@ -91,7 +91,7 @@ const AdminDashboard = () => {
   const sendReminder = async (userId, type) => {
     try {
       // Note: This endpoint may need to be implemented on the backend
-      await axios.post('https://visa-app-1-q9ex.onrender.com/send-reminder', {
+      await axios.post('https://visa-app-bu3x.onrender.com/send-reminder', {
         userId,
         type
       }, {
