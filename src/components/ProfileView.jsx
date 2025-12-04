@@ -12,7 +12,7 @@ const ProfileView = () => {
 
   const fetchCustomers = async () => {
     try {
-      const response = await axios.get('https://visa-app-bu3x.onrender.com/customers', {
+      const response = await axios.get('https://visa-app-production.onrender.com/customers', {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`

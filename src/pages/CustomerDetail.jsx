@@ -23,8 +23,8 @@ const CustomerDetail = () => {
       }
 
       const response = await axios.get(
-        `https://visa-app-bu3x.onrender.com/h1b_customer/by_login_email/${user.email}`,
-        { headers: { 'Content-Type': 'application/json' } }
+        `https://visa-app-production.onrender.com/h1b_customer/by_login_email/${user.email}`,
+        { headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.token}` } }
       )
 
       let customerArray = []
