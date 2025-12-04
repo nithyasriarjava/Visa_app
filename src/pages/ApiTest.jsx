@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react'
+import { getAllCustomers } from '../services'
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 
 const ApiTest = () => {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-
-  const baseUrl = "https://visa-app-production.onrender.com/customers"
 
   useEffect(() => {
     fetchData()
@@ -14,14 +15,8 @@ const ApiTest = () => {
   const fetchData = async () => {
     try {
       setLoading(true)
-      const response = await fetch(baseUrl, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      })
-      const result = await response.json()
-      setData(result)
+      const response = await getAllCustomers()
+      setData(response.data)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -140,7 +135,7 @@ const ApiTest = () => {
             margin: '0 0 12px 0',
             fontWeight: '600'
           }}>
-            Endpoint: {baseUrl}
+            Endpoint: {API_BASE_URL}/customers
           </p>
           
           <pre style={{

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import axios from 'axios'
+import { getAllCustomers, createCustomer, updateCustomer } from '../services'
 
 const VisaApply = () => {
   const { user } = useAuth()
@@ -143,14 +143,10 @@ const VisaApply = () => {
       console.log('No user email available, skipping fetch')
       return
     }
-    
+
     try {
-      const response = await axios.get('https://visa-app-production.onrender.com/customers', {
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      })
-      
+      const response = await getAllCustomers()
+
       if (response.data && response.data.length > 0) {
         // Find user's data by email since we don't have user_id in the new API
         const userData = response.data.find(customer => customer.email === user?.email)
@@ -277,33 +273,22 @@ const VisaApply = () => {
 
       // Check if we're in editing mode
       const isEditing = existingData?.isEditing && existingData?.customerId
-      const apiUrl = isEditing 
-        ? `https://visa-app-production.onrender.com/update_customer_by_id/${existingData.customerId}`
-        : 'https://visa-app-production.onrender.com/h1b_customer/create'
-      const method = isEditing ? 'put' : 'post'
 
       console.log('=== FINAL API PAYLOAD ===')
       console.log('Mode:', isEditing ? 'EDIT' : 'CREATE')
-      console.log('URL:', apiUrl)
-      console.log('Method:', method.toUpperCase())
       console.log('Payload:', JSON.stringify(formData, null, 2))
 
-      const response = await axios[method](apiUrl, formData, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}` // Assuming token is stored in localStorage
-        },
-        timeout: 30000 // 30 second timeout
-      })
+      const response = isEditing
+        ? await updateCustomer(existingData.customerId, formData)
+        : await createCustomer(formData)
 
       console.log('=== API SUCCESS ===')
       console.log('Response status:', response.status)
       console.log('Response data:', response.data)
 
-      const successMessage = isEditing 
-        ? '✅ Customer updated successfully! Redirecting to dashboard...'
-        : '✅ Visa application submitted successfully! Receipt Number: ' + h1bDetails.receiptNumber + '. Redirecting to dashboard...'
+      const successMessage = isEditing
+        ? 'Customer updated successfully! Redirecting to dashboard...'
+        : 'Visa application submitted successfully! Receipt Number: ' + h1bDetails.receiptNumber + '. Redirecting to dashboard...'
       
       setMessage(successMessage)
       
@@ -328,7 +313,7 @@ const VisaApply = () => {
       console.error('Response data:', error.response?.data)
       console.error('Request config:', error.config)
       
-      let errorMessage = '❌ Error submitting application. '
+      let errorMessage = 'Error submitting application. '
       
       if (error.response?.status === 422) {
         errorMessage += 'Validation failed. Please check all fields are filled correctly.'

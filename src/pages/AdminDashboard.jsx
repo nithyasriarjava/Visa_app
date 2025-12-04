@@ -3,7 +3,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { calculateDaysRemaining, formatDate } from '../lib/utils'
 import { Users, AlertTriangle, Clock, Filter } from 'lucide-react'
-import axios from 'axios'
+import { getAllCustomers, sendReminder as sendReminderApi } from '../services'
 
 const AdminDashboard = () => {
   const [applicants, setApplicants] = useState([])
@@ -27,11 +27,7 @@ const AdminDashboard = () => {
 
   const fetchApplicants = async () => {
     try {
-      const response = await axios.get('https://visa-app-production.onrender.com/customers', {
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      })
+      const response = await getAllCustomers()
       setApplicants(response.data)
     } catch (error) {
       console.error('Error fetching applicants:', error)
@@ -91,14 +87,7 @@ const AdminDashboard = () => {
   const sendReminder = async (userId, type) => {
     try {
       // Note: This endpoint may need to be implemented on the backend
-      await axios.post('https://visa-app-production.onrender.com/send-reminder', {
-        userId,
-        type
-      }, {
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      })
+      await sendReminderApi(userId, type)
       alert(`${type} reminder sent successfully!`)
     } catch (error) {
       console.error('Error sending reminder:', error)

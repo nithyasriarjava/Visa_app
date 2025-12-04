@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { ArrowLeft, User, MapPin, FileText } from 'lucide-react'
-import axios from 'axios'
+import { getCustomerByEmail } from '../services'
 
 const CustomerDetail = () => {
   const { id } = useParams()
@@ -22,18 +22,15 @@ const CustomerDetail = () => {
         return
       }
 
-      const response = await axios.get(
-        `https://visa-app-production.onrender.com/h1b_customer/by_login_email/${user.email}`,
-        { headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${user.token}` } }
-      )
+      const response = await getCustomerByEmail(user.email)
 
       let customerArray = []
       if (response.data) {
         customerArray = Array.isArray(response.data) ? response.data : [response.data]
       }
 
-      const foundCustomer = customerArray.find(c => 
-        (c.customer_id && c.customer_id.toString() === id) || 
+      const foundCustomer = customerArray.find(c =>
+        (c.customer_id && c.customer_id.toString() === id) ||
         customerArray.indexOf(c).toString() === id
       )
 

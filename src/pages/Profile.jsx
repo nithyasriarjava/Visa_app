@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { User, Edit, Trash2, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import axios from 'axios'
+import { getCustomerByEmail, softDeleteCustomer } from '../services'
 
 const Profile = () => {
   const { user } = useAuth()
@@ -37,17 +37,9 @@ const Profile = () => {
         return
       }
 
-      let X = { 'Content-Type': 'application/json','Authorization': `Bearer ${localStorage.getItem('token')}` }
-
-      console.log('header local storage:', localStorage.getItem('token'))
-      console.log("header:", X)
       console.log('Making API request to fetch customer data...')
-      const response = await axios.get(
-        `https://visa-app-production.onrender.com/h1b_customer/by_login_email/${user.email}`,
-        { headers: X, timeout: 10000 }
-      )
+      const response = await getCustomerByEmail(user.email)
 
-      
       console.log('API Response received:', response.data)
 
       let customerArray = []
@@ -57,7 +49,7 @@ const Profile = () => {
           : [response.data]
       }
 
-      // ✅ Only include customers whose h1b_status = Active (case-insensitive)
+      // Only include customers whose h1b_status = Active (case-insensitive)
       const activeCustomers = customerArray.filter(c => {
         const status = (c.h1b_status || c.H1B_status || c.status || '')
           .toString()
@@ -67,12 +59,12 @@ const Profile = () => {
 
       console.log('Filtered Active customers:', activeCustomers)
       setCustomerData(activeCustomers)
-      
+
       // Send data to Layout for notifications
       window.dispatchEvent(new CustomEvent('profileDataUpdated', {
         detail: activeCustomers
       }))
-      
+
       setLoading(false)
     } catch (error) {
       console.error('Error fetching customer data:', error)
@@ -132,24 +124,20 @@ const Profile = () => {
 
     try {
       const customerId = customerToDelete.customer_id || customerToDelete.id
-      await axios.patch(
-        `https://visa-app-production.onrender.com/soft_delete_customer_via_id/${customerId}`,
-        {},
-        { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` } }
-      )
+      await softDeleteCustomer(customerId)
 
       await fetchCustomerData()
-      
+
       // Trigger notification refresh
       window.dispatchEvent(new CustomEvent('customerUpdated'))
-      
-      setMessage('✅ Customer deleted successfully!')
+
+      setMessage('Customer deleted successfully!')
       setShowDeleteModal(false)
       setCustomerToDelete(null)
       setTimeout(() => setMessage(''), 3000)
     } catch (error) {
       console.error('Error deleting customer:', error)
-      setMessage('❌ Error deleting customer. Please try again.')
+      setMessage('Error deleting customer. Please try again.')
       setTimeout(() => setMessage(''), 3000)
     }
   }
@@ -194,9 +182,9 @@ const Profile = () => {
         {message && (
           <div
             className={`p-3 mb-4 rounded-lg text-center text-sm font-medium ${
-              message.includes('✅')
-                ? 'bg-green-50 text-green-700 border border-green-200'
-                : 'bg-red-50 text-red-700 border border-red-200'
+              message.includes('Error')
+                ? 'bg-red-50 text-red-700 border border-red-200'
+                : 'bg-green-50 text-green-700 border border-green-200'
             }`}
           >
             {message}
