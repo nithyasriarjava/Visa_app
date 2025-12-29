@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Eye, EyeOff, Mail, Lock, Plane, ArrowRight, Globe, CheckCircle } from 'lucide-react';
+import { APP_CONFIG, FEATURES, MESSAGES } from '../lib/constants';
 
 const Login = ({ setIsLogin }) => {
   const [formData, setFormData] = useState({
@@ -31,13 +32,13 @@ const Login = ({ setIsLogin }) => {
     try {
       const result = await login(formData.email, formData.password);
       if (result.success) {
-        setMessage(result.message || 'Login successful!');
+        setMessage(result.message || MESSAGES.success.login);
         // Navigation is handled in AuthContext
       } else {
         setError(result.error);
       }
     } catch (error) {
-      setError('Login failed');
+      setError(MESSAGES.error.loginFailed);
     } finally {
       setLoading(false);
     }
@@ -71,10 +72,10 @@ const Login = ({ setIsLogin }) => {
     try {
       const result = await loginWithGoogle();
       if (!result.success) {
-        setError(result.error || 'Google authentication failed. Please try again.');
+        setError(result.error || MESSAGES.error.googleAuthFailed);
       }
     } catch (error) {
-      setError('Google authentication failed. Please try again.');
+      setError(MESSAGES.error.googleAuthFailed);
     }
   };
 
@@ -95,25 +96,20 @@ const Login = ({ setIsLogin }) => {
               <div className="w-12 h-12 bg-gradient-to-r from-slate-800 to-slate-900 rounded-xl flex items-center justify-center mr-4">
                 <Plane className="w-6 h-6 text-white" />
               </div>
-              <h1 className="text-2xl font-bold text-white">VisaFlow</h1>
+              <h1 className="text-2xl font-bold text-white">{APP_CONFIG.name}</h1>
             </div>
             
             <h2 className="text-2xl xl:text-3xl font-bold text-white mb-4 leading-tight">
-              Your Gateway to
-              <span className="bg-gradient-to-r from-slate-300 to-slate-400 bg-clip-text text-transparent"> Global Travel</span>
+              {APP_CONFIG.tagline.split(' ').slice(0, 2).join(' ')}
+              <span className="bg-gradient-to-r from-slate-300 to-slate-400 bg-clip-text text-transparent"> {APP_CONFIG.tagline.split(' ').slice(2).join(' ')}</span>
             </h2>
             
             <p className="text-base text-slate-200 mb-8 leading-relaxed">
-              Streamline your visa applications with our intelligent platform. Fast, secure, and reliable visa processing.
+              {APP_CONFIG.description}
             </p>
             
             <div className="space-y-4">
-              {[
-                'AI-powered application assistance',
-                'Real-time status tracking',
-                'Expert consultation available',
-                'Secure document management'
-              ].map((feature, index) => (
+              {FEATURES.login.map((feature, index) => (
                 <div key={index} className="flex items-center text-slate-200">
                   <CheckCircle className="w-4 h-4 text-slate-400 mr-3 flex-shrink-0" />
                   <span className="text-sm">{feature}</span>
@@ -132,7 +128,7 @@ const Login = ({ setIsLogin }) => {
                 <div className="w-10 h-10 bg-gradient-to-r from-slate-800 to-slate-900 rounded-xl flex items-center justify-center mr-3">
                   <Plane className="w-5 h-5 text-white" />
                 </div>
-                <h1 className="text-xl font-bold text-white">VisaFlow</h1>
+                <h1 className="text-xl font-bold text-white">{APP_CONFIG.name}</h1>
               </div>
             </div>
 
@@ -168,14 +164,14 @@ const Login = ({ setIsLogin }) => {
                     <div className="flex gap-2">
                       <button
                         type="submit"
-                        className="flex-1 bg-slate-800 text-white py-2 rounded-lg text-sm font-medium hover:bg-slate-700 transition-colors"
+                        className="flex-1 bg-slate-800 text-white py-2 rounded-lg text-sm font-medium hover:bg-slate-700 transition-colors cursor-pointer"
                       >
                         Send Reset Email
                       </button>
                       <button
                         type="button"
                         onClick={() => setShowResetPassword(false)}
-                        className="px-4 py-2 text-slate-300 hover:text-white text-sm transition-colors"
+                        className="px-4 py-2 text-slate-300 hover:text-white text-sm transition-colors cursor-pointer"
                       >
                         Cancel
                       </button>
@@ -223,7 +219,7 @@ const Login = ({ setIsLogin }) => {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-300 transition-colors"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-300 transition-colors cursor-pointer"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -234,7 +230,7 @@ const Login = ({ setIsLogin }) => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-gradient-to-r from-slate-800 to-slate-900 text-white py-3 rounded-lg font-semibold text-sm shadow-lg hover:shadow-xl hover:from-slate-900 hover:to-slate-800 transform hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  className="w-full bg-gradient-to-r from-slate-800 to-slate-900 text-white py-3 rounded-lg font-semibold text-sm shadow-lg hover:shadow-xl hover:from-slate-900 hover:to-slate-800 transform hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none cursor-pointer"
                 >
                   {loading ? (
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
@@ -257,7 +253,7 @@ const Login = ({ setIsLogin }) => {
               {/* Google Login */}
               <button
                 onClick={handleGoogleLogin}
-                className="w-full bg-white/5 border border-white/10 text-white py-3 rounded-lg font-semibold text-sm shadow-md hover:bg-white/10 transform hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-2 backdrop-blur-sm"
+                className="w-full bg-white/5 border border-white/10 text-white py-3 rounded-lg font-semibold text-sm shadow-md hover:bg-white/10 transform hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-2 backdrop-blur-sm cursor-pointer"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -273,7 +269,7 @@ const Login = ({ setIsLogin }) => {
                 <button
                   type="button"
                   onClick={() => setShowResetPassword(!showResetPassword)}
-                  className="text-slate-300 hover:text-slate-200 text-sm transition-colors"
+                  className="text-slate-300 hover:text-slate-200 text-sm transition-colors cursor-pointer"
                 >
                   Forgot your password?
                 </button>
@@ -282,7 +278,7 @@ const Login = ({ setIsLogin }) => {
                   Don't have an account?{' '}
                   <button 
                     onClick={() => setIsLogin(false)}
-                    className="text-slate-300 hover:text-slate-200 font-semibold transition-colors"
+                    className="text-slate-300 hover:text-slate-200 font-semibold transition-colors cursor-pointer"
                   >
                     Create Account
                   </button>

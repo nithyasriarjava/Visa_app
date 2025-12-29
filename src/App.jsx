@@ -9,7 +9,11 @@ import VisaApply from './pages/VisaApply'
 import AdminDashboard from './pages/AdminDashboard'
 import CustomerDetail from './pages/CustomerDetail'
 
+<<<<<<< HEAD
 import './App.css'
+=======
+import './styles/App.css'
+>>>>>>> 6fa1407ff63b8db4c39d818e888c15a19589cd23
 
 const AppContent = () => {
   const { user, loading } = useAuth()

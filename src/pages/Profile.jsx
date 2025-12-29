@@ -3,6 +3,10 @@ import { useAuth } from '../context/AuthContext'
 import { User, Edit, Trash2, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { getCustomerByEmail, softDeleteCustomer } from '../services'
+<<<<<<< HEAD
+=======
+import { MESSAGES, TIME_CONSTANTS } from '../lib/constants'
+>>>>>>> 6fa1407ff63b8db4c39d818e888c15a19589cd23
 
 const Profile = () => {
   const { user } = useAuth()
@@ -19,28 +23,47 @@ const Profile = () => {
     if (user?.email) fetchCustomerData()
   }, [user?.email])
 
-  // Refresh when page refocuses
+  // Refresh when page refocuses or customer is updated
   useEffect(() => {
     const handleFocus = () => {
       if (user?.email) fetchCustomerData()
     }
+    const handleCustomerUpdate = () => {
+      if (user?.email) fetchCustomerData()
+    }
+    const handleRefreshRequest = () => {
+      if (user?.email) fetchCustomerData()
+    }
+    
     window.addEventListener('focus', handleFocus)
-    return () => window.removeEventListener('focus', handleFocus)
+    window.addEventListener('customerUpdated', handleCustomerUpdate)
+    window.addEventListener('customerCreated', handleCustomerUpdate)
+    window.addEventListener('refreshProfileData', handleRefreshRequest)
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('customerUpdated', handleCustomerUpdate)
+      window.removeEventListener('customerCreated', handleCustomerUpdate)
+      window.removeEventListener('refreshProfileData', handleRefreshRequest)
+    }
   }, [user?.email])
 
   const fetchCustomerData = async () => {
     try {
-      console.log('Fetching customer data for email:', user?.email)
       if (!user?.email) {
         setCustomerData([])
         setLoading(false)
         return
       }
 
+<<<<<<< HEAD
       console.log('Making API request to fetch customer data...')
       const response = await getCustomerByEmail(user.email)
 
       console.log('API Response received:', response.data)
+=======
+      const response = await getCustomerByEmail(user.email)
+>>>>>>> 6fa1407ff63b8db4c39d818e888c15a19589cd23
 
       let customerArray = []
       if (response.data) {
@@ -57,7 +80,7 @@ const Profile = () => {
         return status === 'active'
       })
 
-      console.log('Filtered Active customers:', activeCustomers)
+
       setCustomerData(activeCustomers)
 
       // Send data to Layout for notifications
@@ -67,7 +90,6 @@ const Profile = () => {
 
       setLoading(false)
     } catch (error) {
-      console.error('Error fetching customer data:', error)
       setCustomerData([])
       setLoading(false)
     }
@@ -131,14 +153,23 @@ const Profile = () => {
       // Trigger notification refresh
       window.dispatchEvent(new CustomEvent('customerUpdated'))
 
+<<<<<<< HEAD
       setMessage('Customer deleted successfully!')
+=======
+      setMessage(MESSAGES.success.customerDeleted)
+>>>>>>> 6fa1407ff63b8db4c39d818e888c15a19589cd23
       setShowDeleteModal(false)
       setCustomerToDelete(null)
-      setTimeout(() => setMessage(''), 3000)
+      setTimeout(() => setMessage(''), TIME_CONSTANTS.messageTimeout)
     } catch (error) {
+<<<<<<< HEAD
       console.error('Error deleting customer:', error)
       setMessage('Error deleting customer. Please try again.')
       setTimeout(() => setMessage(''), 3000)
+=======
+      setMessage(MESSAGES.error.deleteError)
+      setTimeout(() => setMessage(''), TIME_CONSTANTS.messageTimeout)
+>>>>>>> 6fa1407ff63b8db4c39d818e888c15a19589cd23
     }
   }
 
@@ -152,7 +183,7 @@ const Profile = () => {
       <div className="flex justify-center items-center h-screen bg-slate-50">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-slate-300 border-t-slate-700 rounded-full animate-spin"></div>
-          <p className="text-slate-700 text-sm font-medium">Loading Dashboard...</p>
+          <p className="text-slate-700 text-sm font-medium">{MESSAGES.loading.dashboard}</p>
         </div>
       </div>
     )
@@ -198,7 +229,7 @@ const Profile = () => {
               localStorage.removeItem('editingPersonData')
               navigate('/visa-apply')
             }}
-            className="w-full bg-gradient-to-r from-slate-800 to-slate-900 text-white py-4 px-6 rounded-lg font-semibold text-sm shadow-lg hover:shadow-xl hover:from-slate-900 hover:to-slate-800 transform hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-3"
+            className="w-full bg-gradient-to-r from-slate-800 to-slate-900 text-white py-4 px-6 rounded-lg font-semibold text-sm shadow-lg hover:shadow-xl hover:from-slate-900 hover:to-slate-800 transform hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-3 cursor-pointer"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

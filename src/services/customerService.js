@@ -1,6 +1,10 @@
 import api from './api';
 
+<<<<<<< HEAD
 export const getAllCustomers = () => api.get('/customers');
+=======
+export const getAllCustomers = () => api.get('/h1b_customer/get_all_customers');
+>>>>>>> 6fa1407ff63b8db4c39d818e888c15a19589cd23
 
 export const getCustomerByEmail = (email) =>
   api.get(`/h1b_customer/by_login_email/${email}`, { timeout: 10000 });

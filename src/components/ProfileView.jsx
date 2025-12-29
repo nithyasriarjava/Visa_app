@@ -18,8 +18,12 @@ const ProfileView = () => {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       })
+<<<<<<< HEAD
       console.log('header local storage:', localStorage.getItem('token'))
       console.log("header:", headers)
+=======
+
+>>>>>>> 6fa1407ff63b8db4c39d818e888c15a19589cd23
       setCustomers(response.data)
     } catch (error) {
       setError('Failed to fetch customer data')

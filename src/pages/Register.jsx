@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { Mail, Lock, Plane, UserPlus, Globe, Shield, Zap } from 'lucide-react'
+import { APP_CONFIG, FEATURES, MESSAGES, TIME_CONSTANTS } from '../lib/constants'
 
 const Register = ({ setIsLogin }) => {
   const [formData, setFormData] = useState({
@@ -22,7 +23,7 @@ const Register = ({ setIsLogin }) => {
         setError(result.error || 'Google signup failed')
       }
     } catch (error) {
-      setError('Google signup failed: ' + error.message)
+      setError(MESSAGES.error.googleAuthFailed)
     }
     
     setLoading(false)
@@ -43,15 +44,15 @@ const Register = ({ setIsLogin }) => {
       } else {
         setError(result.error)
         
-        // If user already exists, redirect to login after 2 seconds
+        // If user already exists, redirect to login after delay
         if (result.shouldRedirectToLogin) {
           setTimeout(() => {
             setIsLogin(true)
-          }, 2000)
+          }, TIME_CONSTANTS.redirectDelay)
         }
       }
     } catch (error) {
-      setError('Registration failed')
+      setError(MESSAGES.error.registrationFailed)
     }
 
     setLoading(false)
@@ -81,7 +82,7 @@ const Register = ({ setIsLogin }) => {
               <div className="w-12 h-12 bg-gradient-to-r from-slate-800 to-slate-900 rounded-xl flex items-center justify-center mr-4">
                 <Plane className="w-6 h-6 text-white" />
               </div>
-              <h1 className="text-2xl font-bold text-white">VisaFlow</h1>
+              <h1 className="text-2xl font-bold text-white">{APP_CONFIG.name}</h1>
             </div>
             
             <h2 className="text-2xl xl:text-3xl font-bold text-white mb-4 leading-tight">
@@ -90,35 +91,22 @@ const Register = ({ setIsLogin }) => {
             </h2>
             
             <p className="text-base text-slate-200 mb-8 leading-relaxed">
-              Join thousands of travelers who trust VisaFlow for their visa applications. Experience the future of travel documentation.
+              Join thousands of travelers who trust {APP_CONFIG.name} for their visa applications. Experience the future of travel documentation.
             </p>
             
             <div className="grid grid-cols-1 gap-6">
-              {[
-                {
-                  icon: <Zap className="w-5 h-5 text-slate-400" />,
-                  title: 'Lightning Fast',
-                  description: 'Process applications in record time'
-                },
-                {
-                  icon: <Shield className="w-5 h-5 text-slate-400" />,
-                  title: 'Bank-Level Security',
-                  description: 'Your documents are protected with enterprise-grade encryption'
-                },
-                {
-                  icon: <Globe className="w-5 h-5 text-slate-400" />,
-                  title: 'Global Coverage',
-                  description: 'Support for 150+ countries and territories'
-                }
-              ].map((feature, index) => (
+              {FEATURES.register.map((feature, index) => {
+                const icons = [<Zap className="w-5 h-5 text-slate-400" />, <Shield className="w-5 h-5 text-slate-400" />, <Globe className="w-5 h-5 text-slate-400" />]
+                return (
                 <div key={index} className="flex items-start space-x-4 p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10">
-                  <div className="flex-shrink-0">{feature.icon}</div>
+                  <div className="flex-shrink-0">{icons[index]}</div>
                   <div>
                     <h3 className="text-white font-semibold mb-1 text-sm">{feature.title}</h3>
                     <p className="text-slate-200 text-xs">{feature.description}</p>
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         </div>
@@ -132,7 +120,7 @@ const Register = ({ setIsLogin }) => {
                 <div className="w-10 h-10 bg-gradient-to-r from-slate-800 to-slate-900 rounded-xl flex items-center justify-center mr-3">
                   <Plane className="w-5 h-5 text-white" />
                 </div>
-                <h1 className="text-xl font-bold text-white">VisaFlow</h1>
+                <h1 className="text-xl font-bold text-white">{APP_CONFIG.name}</h1>
               </div>
             </div>
 
@@ -200,7 +188,7 @@ const Register = ({ setIsLogin }) => {
                 
                 <div className="space-y-1">
                   <label className="block text-xs font-medium text-slate-200">
-                    Password
+                    Create Password
                   </label>
                   <div className="relative group">
                     <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-slate-300 transition-colors" />

@@ -67,7 +67,11 @@ const Layout = () => {
   useEffect(() => {
     const handleProfileDataUpdate = (event) => {
       const profileData = event.detail
+<<<<<<< HEAD
       console.log('Profile data received in Layout:', profileData)
+=======
+
+>>>>>>> 6fa1407ff63b8db4c39d818e888c15a19589cd23
       
       if (profileData && profileData.length > 0) {
         const validUsers = profileData.filter(u => {
@@ -83,17 +87,33 @@ const Layout = () => {
           return hasStart || hasEnd
         })
         
+<<<<<<< HEAD
         console.log('Valid notification users:', validUsers)
+=======
+
+>>>>>>> 6fa1407ff63b8db4c39d818e888c15a19589cd23
         setNotificationUsers(validUsers)
       } else {
         setNotificationUsers([])
       }
     }
 
+<<<<<<< HEAD
+=======
+    const handleCustomerUpdate = () => {
+      // Trigger profile data refresh when customers are updated
+      window.dispatchEvent(new CustomEvent('refreshProfileData'))
+    }
+
+>>>>>>> 6fa1407ff63b8db4c39d818e888c15a19589cd23
     window.addEventListener('profileDataUpdated', handleProfileDataUpdate)
+    window.addEventListener('customerUpdated', handleCustomerUpdate)
+    window.addEventListener('customerCreated', handleCustomerUpdate)
     
     return () => {
       window.removeEventListener('profileDataUpdated', handleProfileDataUpdate)
+      window.removeEventListener('customerUpdated', handleCustomerUpdate)
+      window.removeEventListener('customerCreated', handleCustomerUpdate)
     }
   }, [])
 
@@ -224,7 +244,7 @@ const Layout = () => {
                     localStorage.removeItem('editingPersonIndex')
                   }
                   navigate(`/${item.id}`)
-                  console.log('navigating to', item.id)
+
                   if (isMobile) setSidebarOpen(false)
                 }}
                 className={`cursor-pointer transition-all duration-300 flex items-center gap-4 font-medium group

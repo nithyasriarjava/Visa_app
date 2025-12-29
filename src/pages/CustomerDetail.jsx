@@ -3,6 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { ArrowLeft, User, MapPin, FileText } from 'lucide-react'
 import { getCustomerByEmail } from '../services'
+<<<<<<< HEAD
+=======
+import { MESSAGES } from '../lib/constants'
+>>>>>>> 6fa1407ff63b8db4c39d818e888c15a19589cd23
 
 const CustomerDetail = () => {
   const { id } = useParams()
@@ -37,7 +41,7 @@ const CustomerDetail = () => {
       setCustomer(foundCustomer || null)
       setLoading(false)
     } catch (error) {
-      console.error('Error fetching customer detail:', error)
+      // Error fetching customer detail
       setLoading(false)
     }
   }
@@ -47,7 +51,7 @@ const CustomerDetail = () => {
       <div className="flex justify-center items-center h-screen bg-slate-50">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-slate-300 border-t-slate-700 rounded-full animate-spin"></div>
-          <p className="text-slate-700 text-sm font-medium">Loading Customer Details...</p>
+          <p className="text-slate-700 text-sm font-medium">{MESSAGES.loading.customerDetails}</p>
         </div>
       </div>
     )
@@ -65,7 +69,7 @@ const CustomerDetail = () => {
             Back to Dashboard
           </button>
           <div className="bg-white rounded-lg p-8 text-center border border-slate-200">
-            <p className="text-slate-600">Customer not found</p>
+            <p className="text-slate-600">{MESSAGES.error.customerNotFound}</p>
           </div>
         </div>
       </div>
