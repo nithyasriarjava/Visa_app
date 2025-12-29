@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
-import { User, Edit, Trash2 } from 'lucide-react'
+import { User, Edit, Trash2, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import axios from 'axios'
+import { getCustomerByEmail, softDeleteCustomer } from '../services'
+import { MESSAGES, TIME_CONSTANTS } from '../lib/constants'
 
 const Profile = () => {
   const { user } = useAuth()
@@ -19,30 +20,40 @@ const Profile = () => {
     if (user?.email) fetchCustomerData()
   }, [user?.email])
 
-  // Refresh when page refocuses
+  // Refresh when page refocuses or customer is updated
   useEffect(() => {
     const handleFocus = () => {
       if (user?.email) fetchCustomerData()
     }
+    const handleCustomerUpdate = () => {
+      if (user?.email) fetchCustomerData()
+    }
+    const handleRefreshRequest = () => {
+      if (user?.email) fetchCustomerData()
+    }
+    
     window.addEventListener('focus', handleFocus)
-    return () => window.removeEventListener('focus', handleFocus)
+    window.addEventListener('customerUpdated', handleCustomerUpdate)
+    window.addEventListener('customerCreated', handleCustomerUpdate)
+    window.addEventListener('refreshProfileData', handleRefreshRequest)
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('customerUpdated', handleCustomerUpdate)
+      window.removeEventListener('customerCreated', handleCustomerUpdate)
+      window.removeEventListener('refreshProfileData', handleRefreshRequest)
+    }
   }, [user?.email])
 
   const fetchCustomerData = async () => {
     try {
-      console.log('Fetching customer data for email:', user?.email)
       if (!user?.email) {
         setCustomerData([])
         setLoading(false)
         return
       }
 
-      const response = await axios.get(
-        `https://visa-app-1-q9ex.onrender.com/h1b_customer/by_login_email/${user.email}`,
-        { headers: { 'Content-Type': 'application/json' }, timeout: 10000 }
-      )
-
-      console.log('API Response received:', response.data)
+      const response = await getCustomerByEmail(user.email)
 
       let customerArray = []
       if (response.data) {
@@ -51,7 +62,7 @@ const Profile = () => {
           : [response.data]
       }
 
-      // ✅ Only include customers whose h1b_status = Active (case-insensitive)
+      // Only include customers whose h1b_status = Active (case-insensitive)
       const activeCustomers = customerArray.filter(c => {
         const status = (c.h1b_status || c.H1B_status || c.status || '')
           .toString()
@@ -59,18 +70,16 @@ const Profile = () => {
         return status === 'active'
       })
 
-      console.log('Filtered Active customers:', activeCustomers)
+
       setCustomerData(activeCustomers)
-      
+
       // Send data to Layout for notifications
-      console.log('📡 Dispatching profileDataUpdated event with', activeCustomers.length, 'users')
       window.dispatchEvent(new CustomEvent('profileDataUpdated', {
         detail: activeCustomers
       }))
-      
+
       setLoading(false)
     } catch (error) {
-      console.error('Error fetching customer data:', error)
       setCustomerData([])
       setLoading(false)
     }
@@ -127,25 +136,20 @@ const Profile = () => {
 
     try {
       const customerId = customerToDelete.customer_id || customerToDelete.id
-      await axios.patch(
-        `https://visa-app-1-q9ex.onrender.com/soft_delete_customer_via_id/${customerId}`,
-        {},
-        { headers: { 'Content-Type': 'application/json' } }
-      )
+      await softDeleteCustomer(customerId)
 
       await fetchCustomerData()
-      
+
       // Trigger notification refresh
       window.dispatchEvent(new CustomEvent('customerUpdated'))
-      
-      setMessage('✅ Customer deleted successfully!')
+
+      setMessage(MESSAGES.success.customerDeleted)
       setShowDeleteModal(false)
       setCustomerToDelete(null)
-      setTimeout(() => setMessage(''), 3000)
+      setTimeout(() => setMessage(''), TIME_CONSTANTS.messageTimeout)
     } catch (error) {
-      console.error('Error deleting customer:', error)
-      setMessage('❌ Error deleting customer. Please try again.')
-      setTimeout(() => setMessage(''), 3000)
+      setMessage(MESSAGES.error.deleteError)
+      setTimeout(() => setMessage(''), TIME_CONSTANTS.messageTimeout)
     }
   }
 
@@ -159,7 +163,7 @@ const Profile = () => {
       <div className="flex justify-center items-center h-screen bg-slate-50">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-slate-300 border-t-slate-700 rounded-full animate-spin"></div>
-          <p className="text-slate-700 text-sm font-medium">Loading Dashboard...</p>
+          <p className="text-slate-700 text-sm font-medium">{MESSAGES.loading.dashboard}</p>
         </div>
       </div>
     )
@@ -189,9 +193,9 @@ const Profile = () => {
         {message && (
           <div
             className={`p-3 mb-4 rounded-lg text-center text-sm font-medium ${
-              message.includes('✅')
-                ? 'bg-green-50 text-green-700 border border-green-200'
-                : 'bg-red-50 text-red-700 border border-red-200'
+              message.includes('Error')
+                ? 'bg-red-50 text-red-700 border border-red-200'
+                : 'bg-green-50 text-green-700 border border-green-200'
             }`}
           >
             {message}
@@ -205,7 +209,7 @@ const Profile = () => {
               localStorage.removeItem('editingPersonData')
               navigate('/visa-apply')
             }}
-            className="w-full bg-gradient-to-r from-slate-800 to-slate-900 text-white py-4 px-6 rounded-lg font-semibold text-sm shadow-lg hover:shadow-xl hover:from-slate-900 hover:to-slate-800 transform hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-3"
+            className="w-full bg-gradient-to-r from-slate-800 to-slate-900 text-white py-4 px-6 rounded-lg font-semibold text-sm shadow-lg hover:shadow-xl hover:from-slate-900 hover:to-slate-800 transform hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-3 cursor-pointer"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

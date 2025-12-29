@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
-import { supabase } from '../components/supabaseClient'
+import { supabase } from '../lib/supabaseClient'
 import { useNavigate } from 'react-router-dom'
+import { APP_CONFIG, MESSAGES, VALIDATION } from '../lib/constants'
 
 const AuthContext = createContext()
 
@@ -21,6 +22,7 @@ export const AuthProvider = ({ children }) => {
       if (session?.user) {
         const userData = formatUser(session.user)
         setUser(userData)
+        localStorage.setItem('token', session.access_token)
       }
       setLoading(false)
     })
@@ -28,15 +30,15 @@ export const AuthProvider = ({ children }) => {
     // Listen for login/logout changes - PERMANENT listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('Auth event:', event, 'Session:', !!session?.user)
-        
         if (session?.user) {
           const userData = formatUser(session.user)
           setUser(userData)
+          localStorage.setItem('token', session.access_token)
           setLoading(false)
           // Removed auto navigation to prevent forced redirects
         } else if (event === 'SIGNED_OUT') {
           setUser(null)
+          localStorage.removeItem('token')
           setLoading(false)
         }
       }
@@ -44,7 +46,7 @@ export const AuthProvider = ({ children }) => {
 
     // Only cleanup on component unmount - keep listener active
     return () => subscription.unsubscribe()
-  }, [navigate, user])
+  }, [navigate])
 
   // Format user data
   const formatUser = (user) => ({
@@ -52,7 +54,7 @@ export const AuthProvider = ({ children }) => {
     email: user.email,
     firstName:
       user.user_metadata?.full_name?.split(' ')[0] ||
-      user.email.split('@')[0],
+      (user.email ? user.email.split('@')[0] : ''),
     lastName:
       user.user_metadata?.full_name?.split(' ')[1] || '',
     role: user.email?.includes('admin') ? 'admin' : 'user',
@@ -61,10 +63,35 @@ export const AuthProvider = ({ children }) => {
   // Validate form inputs
   const validateForm = (email, password, isLogin = false) => {
     if (!email?.trim()) return 'Email required'
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return 'Invalid email format'
+    if (!VALIDATION.email.test(email.trim())) return 'Invalid email format'
     if (!password?.trim()) return 'Password required'
-    if (!isLogin && password.trim().length < 6) return 'Password minimum 6 characters'
+    if (!isLogin && password.trim().length < VALIDATION.minPasswordLength) return `Password minimum ${VALIDATION.minPasswordLength} characters`
     return null
+  }
+
+  // Helper: check if email exists in your 'profiles' table
+  // (This is the most reliable client-side check — keep profiles synced on any login)
+  const emailExistsInProfiles = async (email) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, email, provider')
+        .ilike('email', email.trim())
+        .limit(1)
+        .maybeSingle()
+
+      if (error) {
+        console.warn('profiles lookup error:', error)
+        // don't hard-fail on lookup errors; return false so signup can still proceed,
+        // but log it so you can investigate.
+        return { exists: false, error }
+      }
+
+      return { exists: !!data, data }
+    } catch (err) {
+      console.error('profiles lookup exception:', err)
+      return { exists: false, error: err }
+    }
   }
 
   // Email-password login
@@ -75,24 +102,21 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      console.log('Attempting login with email:', email.trim())
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
       })
-      console.log('Supabase response:', { user: !!data?.user, session: !!data?.session, error: error?.message })
 
       if (error) {
         // Handle specific Supabase auth errors
         if (error.message.includes('Invalid login credentials')) {
-          // This could be either wrong password or user not found
-          return { success: false, error: 'No account found. Please signup.' }
+          return { success: false, error: MESSAGES.error.noAccount }
         }
         if (error.message.includes('Email not confirmed') || error.message.includes('email_not_confirmed')) {
-          return { success: false, error: 'Verify email before login' }
+          return { success: false, error: MESSAGES.error.verifyEmail }
         }
         if (error.message.includes('Invalid email or password')) {
-          return { success: false, error: 'Incorrect password' }
+          return { success: false, error: MESSAGES.error.incorrectPassword }
         }
         return { success: false, error: error.message }
       }
@@ -101,57 +125,80 @@ export const AuthProvider = ({ children }) => {
       if (data?.user && data?.session) {
         const userData = formatUser(data.user)
         setUser(userData)
+        localStorage.setItem('token', data.session.access_token)
         navigate('/profile')
-        return { success: true, error: null, message: 'Login successful' }
+        return { success: true, error: null, message: MESSAGES.success.login }
       }
 
       // Handle unverified email (user exists but no session)
       if (data?.user && !data?.session) {
-        return { success: false, error: 'Verify email before login' }
+        return { success: false, error: MESSAGES.error.verifyEmail }
       }
 
-      return { success: false, error: 'Login failed' }
+      return { success: false, error: MESSAGES.error.loginFailed }
     } catch (error) {
-      return { success: false, error: 'Login failed' }
+      return { success: false, error: MESSAGES.error.loginFailed }
     }
   }
 
-  // Register new user
+  // Register new user - UPDATED to block duplicate OAuth emails
   const register = async (email, password) => {
-    const validationError = validateForm(email, password, false)
+    const validationError = validateForm(email, password, false);
     if (validationError) {
-      return { success: false, error: validationError }
+      return { success: false, error: validationError };
     }
 
-    try {
-      const { data, error } = await supabase.auth.signUp({ 
-        email: email.trim(), 
-        password: password.trim() 
-      })
-      
-      if (error) {
-        if (error.message.includes('User already registered') || 
-            error.message.includes('already registered')) {
-          return { success: false, error: 'Account exists, please login', shouldRedirectToLogin: true }
-        }
-        return { success: false, error: error.message }
-      }
-      
-      // Check if user already exists (Supabase returns user with session for existing users)
-      if (data?.user && data?.session) {
-        return { success: false, error: 'Account exists, please login', shouldRedirectToLogin: true }
-      }
-      
-      // New user created successfully (user exists but no session = needs email verification)
-      if (data?.user && !data?.session) {
-        return { success: true, error: null, message: 'Check email & verify' }
-      }
-      
-      return { success: true, error: null, message: 'Check email & verify' }
-    } catch (error) {
-      return { success: false, error: 'Registration failed' }
+    // --- CLIENT-SIDE PRECHECK ------------
+    // Check profiles table first. If an entry exists, block signup and direct to OAuth login.
+    const emailCheck = await emailExistsInProfiles(email);
+    if (emailCheck.error) {
+      // optional: you could block signup on lookup error, but here we allow signup to continue
+      // so the app remains usable even if profiles read fails. We just log the error.
+      console.warn('Could not confirm if email exists in profiles. Proceeding to signup attempt.');
+    } else if (emailCheck.exists) {
+      // If profile exists, we assume user already registered (likely via Google/OAuth)
+      return {
+        success: false,
+        error: "An account with this email already exists. Please sign in using Google (or your original provider).",
+        shouldRedirectToLogin: true,
+      };
     }
-  }
+
+    // --- PROCEED TO SIGNUP ------------
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password: password.trim(),
+      });
+
+      console.log('Supabase signUp response:', { data, error });
+
+      // If Supabase says user already registered (fallback safety)
+      if (error && (error.message?.includes("User already registered") || error.message?.includes("already registered"))) {
+        return {
+          success: false,
+          error: "Account already exists. Please sign in.",
+          shouldRedirectToLogin: true,
+        };
+      }
+
+      // Generic error returned
+      if (error) {
+        return { success: false, error: error.message || 'Registration failed' };
+      }
+
+      // On success, Supabase commonly sends a confirmation email (if email confirmations enabled)
+      return {
+        success: true,
+        error: null,
+        message: "Verification email sent. Please check your inbox.",
+      };
+
+    } catch (error) {
+      console.error('register catch error:', error)
+      return { success: false, error: "Registration failed" };
+    }
+  };
 
   // Password reset
   const resetPassword = async (email) => {
@@ -162,45 +209,46 @@ export const AuthProvider = ({ children }) => {
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: window.location.origin + '/#/reset-password'
+        redirectTo: window.location.origin + APP_CONFIG.resetPasswordPath
       })
-      
+
       if (error) {
         return { success: false, error: error.message }
       }
-      
-      return { success: true, message: 'Password reset email sent!' }
+
+      return { success: true, message: MESSAGES.success.passwordReset }
     } catch (error) {
-      return { success: false, error: 'Failed to send reset email' }
+      return { success: false, error: MESSAGES.error.passwordReset }
     }
   }
 
-  // Google login/signup
   const loginWithGoogle = async () => {
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin,
+          redirectTo: APP_CONFIG.redirectUrl,
         },
-      })
-      if (error) return { success: false, error: error.message }
-      return { success: true }
+      });
+
+      if (error) return { success: false, error: error.message };
+      return { success: true };
     } catch {
-      return { success: false, error: 'Google authentication failed' }
+      return { success: false, error: MESSAGES.error.googleAuthFailed };
     }
-  }
+  };
+
 
   // Logout
   const logout = async () => {
     try {
-      console.log('Logging out...')
       await supabase.auth.signOut()
+      localStorage.removeItem('token')
       setUser(null)
       setLoading(false)
       navigate('/')
     } catch (error) {
-      console.error('Logout error:', error)
+      localStorage.removeItem('token')
       setUser(null)
       setLoading(false)
       navigate('/')

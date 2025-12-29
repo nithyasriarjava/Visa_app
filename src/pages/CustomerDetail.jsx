@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { ArrowLeft, User, MapPin, FileText } from 'lucide-react'
-import axios from 'axios'
+import { getCustomerByEmail } from '../services'
+import { MESSAGES } from '../lib/constants'
 
 const CustomerDetail = () => {
   const { id } = useParams()
@@ -22,25 +23,22 @@ const CustomerDetail = () => {
         return
       }
 
-      const response = await axios.get(
-        `https://visa-app-1-q9ex.onrender.com/h1b_customer/by_login_email/${user.email}`,
-        { headers: { 'Content-Type': 'application/json' } }
-      )
+      const response = await getCustomerByEmail(user.email)
 
       let customerArray = []
       if (response.data) {
         customerArray = Array.isArray(response.data) ? response.data : [response.data]
       }
 
-      const foundCustomer = customerArray.find(c => 
-        (c.customer_id && c.customer_id.toString() === id) || 
+      const foundCustomer = customerArray.find(c =>
+        (c.customer_id && c.customer_id.toString() === id) ||
         customerArray.indexOf(c).toString() === id
       )
 
       setCustomer(foundCustomer || null)
       setLoading(false)
     } catch (error) {
-      console.error('Error fetching customer detail:', error)
+      // Error fetching customer detail
       setLoading(false)
     }
   }
@@ -50,7 +48,7 @@ const CustomerDetail = () => {
       <div className="flex justify-center items-center h-screen bg-slate-50">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-slate-300 border-t-slate-700 rounded-full animate-spin"></div>
-          <p className="text-slate-700 text-sm font-medium">Loading Customer Details...</p>
+          <p className="text-slate-700 text-sm font-medium">{MESSAGES.loading.customerDetails}</p>
         </div>
       </div>
     )
@@ -68,7 +66,7 @@ const CustomerDetail = () => {
             Back to Dashboard
           </button>
           <div className="bg-white rounded-lg p-8 text-center border border-slate-200">
-            <p className="text-slate-600">Customer not found</p>
+            <p className="text-slate-600">{MESSAGES.error.customerNotFound}</p>
           </div>
         </div>
       </div>

@@ -3,7 +3,8 @@ import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { calculateDaysRemaining, formatDate } from '../lib/utils'
 import { Users, AlertTriangle, Clock, Filter } from 'lucide-react'
-import axios from 'axios'
+import { getAllCustomers, sendReminder as sendReminderApi } from '../services'
+import { ADMIN_FILTERS, TIME_CONSTANTS, MESSAGES } from '../lib/constants'
 
 const AdminDashboard = () => {
   const [applicants, setApplicants] = useState([])
@@ -18,7 +19,20 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     fetchApplicants()
-  })
+    
+    // Listen for customer updates
+    const handleCustomerUpdate = () => {
+      fetchApplicants()
+    }
+    
+    window.addEventListener('customerUpdated', handleCustomerUpdate)
+    window.addEventListener('customerCreated', handleCustomerUpdate)
+    
+    return () => {
+      window.removeEventListener('customerUpdated', handleCustomerUpdate)
+      window.removeEventListener('customerCreated', handleCustomerUpdate)
+    }
+  }, [])
 
   useEffect(() => {
     applyFilter()
@@ -27,14 +41,10 @@ const AdminDashboard = () => {
 
   const fetchApplicants = async () => {
     try {
-      const response = await axios.get('https://visa-app-1-q9ex.onrender.com/customers', {
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      })
+      const response = await getAllCustomers()
       setApplicants(response.data)
     } catch (error) {
-      console.error('Error fetching applicants:', error)
+      // Error fetching applicants
     } finally {
       setLoading(false)
     }
@@ -48,21 +58,21 @@ const AdminDashboard = () => {
         filtered = applicants.filter(app => {
           if (!app.h1bDetails?.endDate) return false
           const days = calculateDaysRemaining(app.h1bDetails.endDate)
-          return days <= 30 && days > 0
+          return days <= TIME_CONSTANTS.expiringDays && days > 0
         })
         break
       case 'expiring10':
         filtered = applicants.filter(app => {
           if (!app.h1bDetails?.endDate) return false
           const days = calculateDaysRemaining(app.h1bDetails.endDate)
-          return days <= 10 && days > 0
+          return days <= TIME_CONSTANTS.warningDays && days > 0
         })
         break
       case 'critical':
         filtered = applicants.filter(app => {
           if (!app.h1bDetails?.endDate) return false
           const days = calculateDaysRemaining(app.h1bDetails.endDate)
-          return days <= 2 && days >= 0
+          return days <= TIME_CONSTANTS.criticalDays && days >= 0
         })
         break
       default:
@@ -77,12 +87,12 @@ const AdminDashboard = () => {
     const expiringSoon = applicants.filter(app => {
       if (!app.h1bDetails?.endDate) return false
       const days = calculateDaysRemaining(app.h1bDetails.endDate)
-      return days <= 30 && days > 0
+      return days <= TIME_CONSTANTS.expiringDays && days > 0
     }).length
     const critical = applicants.filter(app => {
       if (!app.h1bDetails?.endDate) return false
       const days = calculateDaysRemaining(app.h1bDetails.endDate)
-      return days <= 2 && days >= 0
+      return days <= TIME_CONSTANTS.criticalDays && days >= 0
     }).length
 
     setStats({ total, expiringSoon, critical })
@@ -91,17 +101,10 @@ const AdminDashboard = () => {
   const sendReminder = async (userId, type) => {
     try {
       // Note: This endpoint may need to be implemented on the backend
-      await axios.post('https://visa-app-1-q9ex.onrender.com/send-reminder', {
-        userId,
-        type
-      }, {
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      })
+      await sendReminderApi(userId, type)
       alert(`${type} reminder sent successfully!`)
     } catch (error) {
-      console.error('Error sending reminder:', error)
+      // Error sending reminder
       alert('Error sending reminder - endpoint may not be implemented yet')
     }
   }
@@ -119,7 +122,7 @@ const AdminDashboard = () => {
             animation: 'spin 1s linear infinite'
           }}></div>
           <p style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '14px', fontWeight: '600', margin: 0 }}>
-            Loading admin dashboard...
+            {MESSAGES.loading.adminDashboard}
           </p>
         </div>
       </div>
@@ -204,20 +207,18 @@ const AdminDashboard = () => {
           <h3 style={{ fontSize: '18px', fontWeight: '700', color: 'white', margin: 0 }}>Filter Applicants</h3>
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-          {[
-            { key: 'all', label: 'All Applicants', color: filter === 'all' ? '#ff6b35' : 'transparent' },
-            { key: 'expiring30', label: 'Expiring in 30 days', color: filter === 'expiring30' ? '#f59e0b' : 'transparent' },
-            { key: 'expiring10', label: 'Expiring in 10 days', color: filter === 'expiring10' ? '#f59e0b' : 'transparent' },
-            { key: 'critical', label: 'Critical (≤2 days)', color: filter === 'critical' ? '#ef4444' : 'transparent' }
-          ].map(btn => (
-            <button
+          {ADMIN_FILTERS.map(btn => {
+            const colors = { all: '#ff6b35', expiring30: '#f59e0b', expiring10: '#f59e0b', critical: '#ef4444' }
+            const color = filter === btn.key ? colors[btn.key] : 'transparent'
+            return (
+              <button
               key={btn.key}
               onClick={() => setFilter(btn.key)}
               style={{
                 padding: '10px 16px',
-                background: btn.color !== 'transparent' ? btn.color : 'rgba(255, 255, 255, 0.1)',
+                background: color !== 'transparent' ? color : 'rgba(255, 255, 255, 0.1)',
                 color: 'white',
-                border: `1px solid ${btn.color !== 'transparent' ? btn.color : 'rgba(255, 255, 255, 0.2)'}`,
+                border: `1px solid ${color !== 'transparent' ? color : 'rgba(255, 255, 255, 0.2)'}`,
                 borderRadius: '8px',
                 fontSize: '12px',
                 fontWeight: '600',
@@ -227,7 +228,8 @@ const AdminDashboard = () => {
             >
               {btn.label}
             </button>
-          ))}
+            )
+          })}
         </div>
       </Card>
 
@@ -245,9 +247,9 @@ const AdminDashboard = () => {
               : null
 
             const getStatusStyle = (days) => {
-              if (days <= 2) return { color: '#ef4444', text: 'Critical (≤2 days)' }
-              if (days <= 10) return { color: '#f59e0b', text: 'Expiring soon (≤10 days)' }
-              if (days <= 30) return { color: '#eab308', text: 'Expiring (≤30 days)' }
+              if (days <= TIME_CONSTANTS.criticalDays) return { color: '#ef4444', text: `Critical (≤${TIME_CONSTANTS.criticalDays} days)` }
+              if (days <= TIME_CONSTANTS.warningDays) return { color: '#f59e0b', text: `Expiring soon (≤${TIME_CONSTANTS.warningDays} days)` }
+              if (days <= TIME_CONSTANTS.expiringDays) return { color: '#eab308', text: `Expiring (≤${TIME_CONSTANTS.expiringDays} days)` }
               return { color: '#10b981', text: 'Active' }
             }
 
@@ -314,7 +316,7 @@ const AdminDashboard = () => {
                         background: 'rgba(255,255,255,0.05)',
                       }}
                     >
-                      <h4 style={{ color: '#070707ff', fontSize: '14px', marginBottom: '8px' }}>Personal Info</h4>
+                      <h4 style={{ color: '#fcd34d', fontSize: '14px', marginBottom: '8px' }}>Personal Info</h4>
                       <p style={{ color: 'white', fontSize: '13px', margin: 0 }}>
                         <b>Phone:</b> {applicant.phone}<br />
                         <b>DOB:</b> {formatDate(applicant.dob)}<br />
