@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import axios from 'axios'
+import { getAllCustomers, createCustomer, updateCustomer } from '../services'
+import { VALIDATION, STATES, FORM_OPTIONS, MESSAGES, TIME_CONSTANTS } from '../lib/constants'
 
 const VisaApply = () => {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [currentStep, setCurrentStep] = useState(1)
   const [loading, setLoading] = useState(false)
+  const [submitAttempted, setSubmitAttempted] = useState(false)
   const [message, setMessage] = useState('')
   const [existingData, setExistingData] = useState(null)
   const [errors, setErrors] = useState({})
@@ -15,20 +17,20 @@ const VisaApply = () => {
   const validatePersonalDetails = () => {
     const newErrors = {}
     if (!personalDetails.firstName.trim()) newErrors.firstName = 'First name is required'
-    else if (!/^[a-zA-Z\s]+$/.test(personalDetails.firstName)) newErrors.firstName = 'First name should contain only letters'
+    else if (!VALIDATION.letters.test(personalDetails.firstName)) newErrors.firstName = 'First name should contain only letters'
     if (!personalDetails.lastName.trim()) newErrors.lastName = 'Last name is required'
-    else if (!/^[a-zA-Z\s]+$/.test(personalDetails.lastName)) newErrors.lastName = 'Last name should contain only letters'
+    else if (!VALIDATION.letters.test(personalDetails.lastName)) newErrors.lastName = 'Last name should contain only letters'
     if (!personalDetails.dateOfBirth) newErrors.dateOfBirth = 'Date of birth is required'
     if (!personalDetails.sex) newErrors.sex = 'Sex is required'
     if (!personalDetails.maritalStatus) newErrors.maritalStatus = 'Marital status is required'
     if (!personalDetails.email.trim()) newErrors.email = 'Email is required'
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(personalDetails.email)) newErrors.email = 'Invalid email format'
+    else if (!VALIDATION.email.test(personalDetails.email)) newErrors.email = 'Invalid email format'
     if (!personalDetails.phone.trim()) newErrors.phone = 'Phone is required'
-    else if (!/^[\+]?[1-9]\d{7,14}$/.test(personalDetails.phone.replace(/[\s\-\(\)]/g, ''))) newErrors.phone = 'Enter valid international phone number (e.g., +1234567890)'
+    else if (!VALIDATION.phone.test(personalDetails.phone.replace(/[\s\-\(\)]/g, ''))) newErrors.phone = 'Enter valid international phone number (e.g., +1234567890)'
     if (!personalDetails.emergencyContactName.trim()) newErrors.emergencyContactName = 'Emergency contact name is required'
-    else if (!/^[a-zA-Z\s]+$/.test(personalDetails.emergencyContactName)) newErrors.emergencyContactName = 'Name should contain only letters'
+    else if (!VALIDATION.letters.test(personalDetails.emergencyContactName)) newErrors.emergencyContactName = 'Name should contain only letters'
     if (!personalDetails.emergencyContactPhone.trim()) newErrors.emergencyContactPhone = 'Emergency contact phone is required'
-    else if (!/^[\+]?[1-9]\d{7,14}$/.test(personalDetails.emergencyContactPhone.replace(/[\s\-\(\)]/g, ''))) newErrors.emergencyContactPhone = 'Enter valid international phone number (e.g., +1234567890)'
+    else if (!VALIDATION.phone.test(personalDetails.emergencyContactPhone.replace(/[\s\-\(\)]/g, ''))) newErrors.emergencyContactPhone = 'Enter valid international phone number (e.g., +1234567890)'
     if (!personalDetails.employmentStartDate) newErrors.employmentStartDate = 'Employment start date is required'
     return newErrors
   }
@@ -37,20 +39,21 @@ const VisaApply = () => {
     const newErrors = {}
     if (!addressDetails.streetName.trim()) newErrors.streetName = 'Street name is required'
     if (!addressDetails.city.trim()) newErrors.city = 'City is required'
-    else if (!/^[a-zA-Z\s]+$/.test(addressDetails.city)) newErrors.city = 'City should contain only letters'
+    else if (!VALIDATION.letters.test(addressDetails.city)) newErrors.city = 'City should contain only letters'
     if (!addressDetails.state.trim()) newErrors.state = 'State is required'
     if (!addressDetails.zip.trim()) newErrors.zip = 'ZIP/Postal code is required'
     else {
-      const isUSState = ['Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado', 'Connecticut', 'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho', 'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana', 'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi', 'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey', 'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma', 'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota', 'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington', 'West Virginia', 'Wisconsin', 'Wyoming', 'District of Columbia', 'Puerto Rico', 'US Virgin Islands', 'American Samoa', 'Guam', 'Northern Mariana Islands'].includes(addressDetails.state)
+      const usStates = STATES.slice(0, 55) // First 55 are US states
+      const isUSState = usStates.includes(addressDetails.state)
       
       if (isUSState) {
         // US ZIP code: 5 digits or 5+4 format
-        if (!/^\d{5}(-\d{4})?$/.test(addressDetails.zip)) {
+        if (!VALIDATION.usZip.test(addressDetails.zip)) {
           newErrors.zip = 'US ZIP code must be 5 digits (12345) or 9 digits (12345-6789)'
         }
       } else {
         // Indian PIN code: 6 digits
-        if (!/^\d{6}$/.test(addressDetails.zip)) {
+        if (!VALIDATION.indianPin.test(addressDetails.zip)) {
           newErrors.zip = 'Indian PIN code must be 6 digits (123456)'
         }
       }
@@ -62,21 +65,21 @@ const VisaApply = () => {
   const validateH1bDetails = () => {
     const newErrors = {}
     if (!h1bDetails.clientName.trim()) newErrors.clientName = 'Client name is required'
-    else if (!/^[a-zA-Z\s&.,'-]+$/.test(h1bDetails.clientName)) newErrors.clientName = 'Client name should contain only letters'
+    else if (!VALIDATION.lettersExtended.test(h1bDetails.clientName)) newErrors.clientName = 'Client name should contain only letters'
     if (!h1bDetails.clientStreet.trim()) newErrors.clientStreet = 'Client street is required'
     if (!h1bDetails.clientCity.trim()) newErrors.clientCity = 'Client city is required'
-    else if (!/^[a-zA-Z\s]+$/.test(h1bDetails.clientCity)) newErrors.clientCity = 'Client city should contain only letters'
+    else if (!VALIDATION.letters.test(h1bDetails.clientCity)) newErrors.clientCity = 'Client city should contain only letters'
     if (!h1bDetails.clientState.trim()) newErrors.clientState = 'Client state is required'
-    else if (!/^[a-zA-Z\s]+$/.test(h1bDetails.clientState)) newErrors.clientState = 'Client state should contain only letters'
+    else if (!VALIDATION.letters.test(h1bDetails.clientState)) newErrors.clientState = 'Client state should contain only letters'
     if (!h1bDetails.clientZip.trim()) newErrors.clientZip = 'Client ZIP is required'
-    else if (!/^\d{5}(-\d{4})?$/.test(h1bDetails.clientZip)) newErrors.clientZip = 'Invalid ZIP code format'
+    else if (!VALIDATION.usZip.test(h1bDetails.clientZip)) newErrors.clientZip = 'Invalid ZIP code format'
     if (!h1bDetails.lcaTitle.trim()) newErrors.lcaTitle = 'LCA title is required'
     if (!h1bDetails.lcaSalary) newErrors.lcaSalary = 'LCA salary is required'
     else if (h1bDetails.lcaSalary < 0) newErrors.lcaSalary = 'Salary must be positive'
     if (!h1bDetails.lcaCode.trim()) newErrors.lcaCode = 'LCA code is required'
-    else if (!/^\d+$/.test(h1bDetails.lcaCode)) newErrors.lcaCode = 'LCA code should contain only numbers'
+    else if (!VALIDATION.numbers.test(h1bDetails.lcaCode)) newErrors.lcaCode = 'LCA code should contain only numbers'
     if (!h1bDetails.receiptNumber.trim()) newErrors.receiptNumber = 'Receipt number is required'
-    else if (!/^\d+$/.test(h1bDetails.receiptNumber)) newErrors.receiptNumber = 'Receipt number should contain only numbers'
+    else if (!VALIDATION.numbers.test(h1bDetails.receiptNumber)) newErrors.receiptNumber = 'Receipt number should contain only numbers'
     if (!h1bDetails.startDate) newErrors.startDate = 'Start date is required'
     if (!h1bDetails.endDate) newErrors.endDate = 'End date is required'
     if (h1bDetails.startDate && h1bDetails.endDate && new Date(h1bDetails.endDate) <= new Date(h1bDetails.startDate)) {
@@ -140,17 +143,12 @@ const VisaApply = () => {
 
   const fetchExistingData = async () => {
     if (!user?.email) {
-      console.log('No user email available, skipping fetch')
       return
     }
-    
+
     try {
-      const response = await axios.get('https://visa-app-1-q9ex.onrender.com/customers', {
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      })
-      
+      const response = await getAllCustomers()
+
       if (response.data && response.data.length > 0) {
         // Find user's data by email since we don't have user_id in the new API
         const userData = response.data.find(customer => customer.email === user?.email)
@@ -190,7 +188,7 @@ const VisaApply = () => {
         }
       }
     } catch (error) {
-      console.log('No existing data found')
+      // No existing data found
     }
   }
 
@@ -218,26 +216,35 @@ const VisaApply = () => {
 
   const handleH1bSubmit = async (e) => {
     e.preventDefault()
-    console.log('=== FORM SUBMIT STARTED ===')
-    console.log('User email:', user?.email)
-    
-    const validationErrors = validateH1bDetails()
-    if (Object.keys(validationErrors).length > 0) {
-      console.log('Validation errors:', validationErrors)
-      setErrors(validationErrors)
+
+    // Prevent multiple submissions
+    if (loading || submitAttempted) {
       return
     }
     
-    console.log('Validation passed, starting API call...')
+    const validationErrors = validateH1bDetails()
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors)
+      return
+    }
     setErrors({})
     setLoading(true)
+    setSubmitAttempted(true)
     setMessage('')
+
+    // Set timeout to prevent indefinite loading
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        setLoading(false)
+        setSubmitAttempted(false)
+        setMessage('Request timeout. Please try again.')
+      }
+    }, 30000) // 30 second timeout
 
     try {
       // Validate required user email
       if (!user?.email) {
-        setMessage('❌ User not authenticated. Please login again.')
-        setLoading(false)
+        setMessage(MESSAGES.error.notAuthenticated)
         return
       }
 
@@ -277,32 +284,17 @@ const VisaApply = () => {
 
       // Check if we're in editing mode
       const isEditing = existingData?.isEditing && existingData?.customerId
-      const apiUrl = isEditing 
-        ? `https://visa-app-1-q9ex.onrender.com/update_customer_by_id/${existingData.customerId}`
-        : 'https://visa-app-1-q9ex.onrender.com/h1b_customer/create'
-      const method = isEditing ? 'put' : 'post'
 
-      console.log('=== FINAL API PAYLOAD ===')
-      console.log('Mode:', isEditing ? 'EDIT' : 'CREATE')
-      console.log('URL:', apiUrl)
-      console.log('Method:', method.toUpperCase())
-      console.log('Payload:', JSON.stringify(formData, null, 2))
+      const response = isEditing
+        ? await updateCustomer(existingData.customerId, formData)
+        : await createCustomer(formData)
 
-      const response = await axios[method](apiUrl, formData, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        timeout: 30000 // 30 second timeout
-      })
+      // Clear timeout on successful response
+      clearTimeout(timeoutId)
 
-      console.log('=== API SUCCESS ===')
-      console.log('Response status:', response.status)
-      console.log('Response data:', response.data)
-
-      const successMessage = isEditing 
-        ? '✅ Customer updated successfully! Redirecting to dashboard...'
-        : '✅ Visa application submitted successfully! Receipt Number: ' + h1bDetails.receiptNumber + '. Redirecting to dashboard...'
+      const successMessage = isEditing
+        ? MESSAGES.success.customerUpdated
+        : `${MESSAGES.success.applicationSubmitted} Receipt Number: ${h1bDetails.receiptNumber}. Redirecting to dashboard...`
       
       setMessage(successMessage)
       
@@ -311,27 +303,22 @@ const VisaApply = () => {
       localStorage.removeItem('editingPersonIndex')
       
       // Trigger notification refresh for updated customer data
-      window.dispatchEvent(new CustomEvent('customerUpdated'))
+      const eventName = isEditing ? 'customerUpdated' : 'customerCreated'
+      window.dispatchEvent(new CustomEvent(eventName))
       
-      setLoading(false)
-      
-      // Redirect to dashboard after 2 seconds
+      // Redirect to dashboard after delay
       setTimeout(() => {
         navigate('/profile')
-      }, 2000)
+      }, TIME_CONSTANTS.redirectDelay)
       
     } catch (error) {
-      console.error('=== API ERROR ===')
-      console.error('Error object:', error)
-      console.error('Response status:', error.response?.status)
-      console.error('Response data:', error.response?.data)
-      console.error('Request config:', error.config)
+      // Clear timeout on error
+      clearTimeout(timeoutId)
       
-      let errorMessage = '❌ Error submitting application. '
+      let errorMessage = MESSAGES.error.applicationError + ' '
       
       if (error.response?.status === 422) {
         errorMessage += 'Validation failed. Please check all fields are filled correctly.'
-        console.error('Validation errors:', error.response.data)
       } else if (error.response?.status === 400) {
         errorMessage += 'Bad request. Please check your data.'
       } else if (error.response?.status === 500) {
@@ -343,7 +330,10 @@ const VisaApply = () => {
       }
       
       setMessage(errorMessage)
+    } finally {
+      // Always reset loading and submit states
       setLoading(false)
+      setSubmitAttempted(false)
     }
   }
 
@@ -456,9 +446,9 @@ const VisaApply = () => {
                     required
                   >
                     <option value="">Select</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
+                    {FORM_OPTIONS.sex.map(option => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
                   </select>
                   {errors.sex && <p className="text-red-600 text-xs mt-1">{errors.sex}</p>}
                 </div>
@@ -475,9 +465,9 @@ const VisaApply = () => {
                     required
                   >
                     <option value="">Select</option>
-                    <option value="Single">Single</option>
-                    <option value="Married">Married</option>
-                    <option value="Divorced">Divorced</option>
+                    {FORM_OPTIONS.maritalStatus.map(option => (
+                      <option key={option} value={option}>{option}</option>
+                    ))}
                   </select>
                   {errors.maritalStatus && <p className="text-red-600 text-xs mt-1">{errors.maritalStatus}</p>}
                 </div>
@@ -562,7 +552,7 @@ const VisaApply = () => {
               <div className="flex justify-end mt-6">
                 <button 
                   type="submit" 
-                  className="bg-slate-800 hover:bg-slate-900 text-white px-6 py-2 rounded-md text-sm font-medium transition-colors"
+                  className="bg-slate-800 hover:bg-slate-900 text-white px-6 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer"
                 >
                   Next: Address Details
                 </button>
@@ -620,98 +610,9 @@ const VisaApply = () => {
                     required
                   >
                     <option value="">Select State</option>
-                    <option value="Alabama">Alabama</option>
-                    <option value="Alaska">Alaska</option>
-                    <option value="Arizona">Arizona</option>
-                    <option value="Arkansas">Arkansas</option>
-                    <option value="California">California</option>
-                    <option value="Colorado">Colorado</option>
-                    <option value="Connecticut">Connecticut</option>
-                    <option value="Delaware">Delaware</option>
-                    <option value="Florida">Florida</option>
-                    <option value="Georgia">Georgia</option>
-                    <option value="Hawaii">Hawaii</option>
-                    <option value="Idaho">Idaho</option>
-                    <option value="Illinois">Illinois</option>
-                    <option value="Indiana">Indiana</option>
-                    <option value="Iowa">Iowa</option>
-                    <option value="Kansas">Kansas</option>
-                    <option value="Kentucky">Kentucky</option>
-                    <option value="Louisiana">Louisiana</option>
-                    <option value="Maine">Maine</option>
-                    <option value="Maryland">Maryland</option>
-                    <option value="Massachusetts">Massachusetts</option>
-                    <option value="Michigan">Michigan</option>
-                    <option value="Minnesota">Minnesota</option>
-                    <option value="Mississippi">Mississippi</option>
-                    <option value="Missouri">Missouri</option>
-                    <option value="Montana">Montana</option>
-                    <option value="Nebraska">Nebraska</option>
-                    <option value="Nevada">Nevada</option>
-                    <option value="New Hampshire">New Hampshire</option>
-                    <option value="New Jersey">New Jersey</option>
-                    <option value="New Mexico">New Mexico</option>
-                    <option value="New York">New York</option>
-                    <option value="North Carolina">North Carolina</option>
-                    <option value="North Dakota">North Dakota</option>
-                    <option value="Ohio">Ohio</option>
-                    <option value="Oklahoma">Oklahoma</option>
-                    <option value="Oregon">Oregon</option>
-                    <option value="Pennsylvania">Pennsylvania</option>
-                    <option value="Rhode Island">Rhode Island</option>
-                    <option value="South Carolina">South Carolina</option>
-                    <option value="South Dakota">South Dakota</option>
-                    <option value="Tennessee">Tennessee</option>
-                    <option value="Texas">Texas</option>
-                    <option value="Utah">Utah</option>
-                    <option value="Vermont">Vermont</option>
-                    <option value="Virginia">Virginia</option>
-                    <option value="Washington">Washington</option>
-                    <option value="West Virginia">West Virginia</option>
-                    <option value="Wisconsin">Wisconsin</option>
-                    <option value="Wyoming">Wyoming</option>
-                    <option value="District of Columbia">District of Columbia</option>
-                    <option value="Puerto Rico">Puerto Rico</option>
-                    <option value="US Virgin Islands">US Virgin Islands</option>
-                    <option value="American Samoa">American Samoa</option>
-                    <option value="Guam">Guam</option>
-                    <option value="Northern Mariana Islands">Northern Mariana Islands</option>
-                    <option value="Tamil Nadu">Tamil Nadu</option>
-                    <option value="Andhra Pradesh">Andhra Pradesh</option>
-                    <option value="Karnataka">Karnataka</option>
-                    <option value="Kerala">Kerala</option>
-                    <option value="Maharashtra">Maharashtra</option>
-                    <option value="Gujarat">Gujarat</option>
-                    <option value="Rajasthan">Rajasthan</option>
-                    <option value="West Bengal">West Bengal</option>
-                    <option value="Uttar Pradesh">Uttar Pradesh</option>
-                    <option value="Madhya Pradesh">Madhya Pradesh</option>
-                    <option value="Bihar">Bihar</option>
-                    <option value="Odisha">Odisha</option>
-                    <option value="Telangana">Telangana</option>
-                    <option value="Assam">Assam</option>
-                    <option value="Jharkhand">Jharkhand</option>
-                    <option value="Haryana">Haryana</option>
-                    <option value="Punjab">Punjab</option>
-                    <option value="Chhattisgarh">Chhattisgarh</option>
-                    <option value="Himachal Pradesh">Himachal Pradesh</option>
-                    <option value="Uttarakhand">Uttarakhand</option>
-                    <option value="Goa">Goa</option>
-                    <option value="Tripura">Tripura</option>
-                    <option value="Meghalaya">Meghalaya</option>
-                    <option value="Manipur">Manipur</option>
-                    <option value="Nagaland">Nagaland</option>
-                    <option value="Arunachal Pradesh">Arunachal Pradesh</option>
-                    <option value="Mizoram">Mizoram</option>
-                    <option value="Sikkim">Sikkim</option>
-                    <option value="Delhi">Delhi</option>
-                    <option value="Puducherry">Puducherry</option>
-                    <option value="Chandigarh">Chandigarh</option>
-                    <option value="Andaman and Nicobar Islands">Andaman and Nicobar Islands</option>
-                    <option value="Dadra and Nagar Haveli and Daman and Diu">Dadra and Nagar Haveli and Daman and Diu</option>
-                    <option value="Lakshadweep">Lakshadweep</option>
-                    <option value="Ladakh">Ladakh</option>
-                    <option value="Jammu and Kashmir">Jammu and Kashmir</option>
+                    {STATES.map(state => (
+                      <option key={state} value={state}>{state}</option>
+                    ))}
                   </select>
                   {errors.state && <p className="text-red-600 text-xs mt-1">{errors.state}</p>}
                 </div>
@@ -736,13 +637,13 @@ const VisaApply = () => {
                 <button
                   type="button"
                   onClick={() => setCurrentStep(1)}
-                  className="bg-slate-200 hover:bg-slate-300 text-slate-800 px-6 py-2 rounded-md text-sm font-medium transition-colors"
+                  className="bg-slate-200 hover:bg-slate-300 text-slate-800 px-6 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer"
                 >
                   Back
                 </button>
                 <button 
                   type="submit" 
-                  className="bg-slate-800 hover:bg-slate-900 text-white px-6 py-2 rounded-md text-sm font-medium transition-colors"
+                  className="bg-slate-800 hover:bg-slate-900 text-white px-6 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer"
                 >
                   Next: H1B Details
                 </button>
@@ -929,16 +830,23 @@ const VisaApply = () => {
                 <button
                   type="button"
                   onClick={() => setCurrentStep(2)}
-                  className="bg-slate-200 hover:bg-slate-300 text-slate-800 px-6 py-2 rounded-md text-sm font-medium transition-colors"
+                  className="bg-slate-200 hover:bg-slate-300 text-slate-800 px-6 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer"
                 >
                   Back
                 </button>
                 <button 
                   type="submit" 
-                  className="bg-slate-800 hover:bg-slate-900 text-white px-6 py-2 rounded-md text-sm font-medium transition-colors"
-                  disabled={loading}
+                  className="bg-slate-800 hover:bg-slate-900 text-white px-6 py-2 rounded-md text-sm font-medium transition-colors cursor-pointer"
+                  disabled={loading || submitAttempted}
                 >
-                  {loading ? (existingData?.isEditing ? 'Updating...' : 'Submitting...') : (existingData?.isEditing ? 'Update Customer' : 'Submit Application')}
+                  {loading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      {existingData?.isEditing ? 'Updating...' : 'Submitting...'}
+                    </div>
+                  ) : (
+                    existingData?.isEditing ? 'Update Customer' : 'Submit Application'
+                  )}
                 </button>
               </div>
             </form>

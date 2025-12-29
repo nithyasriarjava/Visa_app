@@ -1,7 +1,11 @@
 import React, { useState } from 'react'
-import axios from 'axios'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import { createCustomer } from '../services'
 
 const VisaForm = () => {
+  const navigate = useNavigate()
+  const { user } = useAuth()
   const [formData, setFormData] = useState({
     // Personal Details
     firstName: '',
@@ -35,6 +39,7 @@ const VisaForm = () => {
 
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
+  const [submitAttempted, setSubmitAttempted] = useState(false)
 
   const handleChange = (e) => {
     setFormData({
@@ -45,45 +50,72 @@ const VisaForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    
+    // Prevent multiple submissions
+    if (loading || submitAttempted) {
+      return
+    }
+    
     setLoading(true)
+    setSubmitAttempted(true)
     setMessage('')
 
+    // Set timeout to prevent indefinite loading
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        setLoading(false)
+        setSubmitAttempted(false)
+        setMessage('❌ Request timeout. Please try again.')
+      }
+    }, 30000) // 30 second timeout
+
     try {
+      if (!user?.email) {
+        setMessage('❌ User not authenticated. Please login again.')
+        return
+      }
+
       // Convert camelCase to snake_case for API
       const apiPayload = {
-        first_name: formData.firstName,
-        last_name: formData.lastName,
+        first_name: formData.firstName.trim(),
+        last_name: formData.lastName.trim(),
         dob: formData.dateOfBirth,
         sex: formData.sex,
         marital_status: formData.maritalStatus,
-        phone: formData.phone,
-        email: formData.email,
-        emergency_contact_name: formData.emergencyContactName,
-        emergency_contact_phone: formData.emergencyContactPhone,
+        phone: formData.phone.trim(),
+        email: formData.email.trim(),
+        emergency_contact_name: formData.emergencyContactName.trim(),
+        emergency_contact_phone: formData.emergencyContactPhone.trim(),
         employment_start_date: formData.employmentStartDate,
-        street_name: formData.streetName,
-        city: formData.city,
+        street_name: formData.streetName.trim(),
+        city: formData.city.trim(),
         state: formData.state,
-        zip: formData.zip,
-        client_name: formData.clientName,
-        client_street_name: formData.clientStreetName,
-        client_city: formData.clientCity,
-        client_state: formData.clientState,
-        client_zip: formData.clientZip,
-        lca_title: formData.lcaTitle,
-        lca_salary: formData.lcaSalary,
-        lca_code: formData.lcaCode,
-        receipt_number: formData.receiptNumber,
+        zip: formData.zip.trim(),
+        client_name: formData.clientName.trim(),
+        client_street_name: formData.clientStreetName.trim(),
+        client_city: formData.clientCity.trim(),
+        client_state: formData.clientState.trim(),
+        client_zip: formData.clientZip.trim(),
+        lca_title: formData.lcaTitle.trim(),
+        lca_salary: parseFloat(formData.lcaSalary) || 0,
+        lca_code: formData.lcaCode.trim(),
+        receipt_number: formData.receiptNumber.trim(),
         h1b_start_date: formData.startDate,
-        h1b_end_date: formData.endDate
+        h1b_end_date: formData.endDate,
+        login_email: user.email.trim()
       }
       
-      const response = await axios.post('https://visa-app-1-q9ex.onrender.com/h1b_customer/create', apiPayload, {
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      })
-      setMessage('✅ Visa application submitted successfully!')
+      const response = await createCustomer(apiPayload)
+      
+      // Clear timeout on successful response
+      clearTimeout(timeoutId)
+      
+      setMessage(`✅ Visa application submitted successfully! Receipt Number: ${formData.receiptNumber}. Redirecting to dashboard...`)
+      
+      // Trigger customer created event
+      window.dispatchEvent(new CustomEvent('customerCreated'))
+      
+      // Clear form
       setFormData({
         firstName: '', lastName: '', dateOfBirth: '', sex: '', maritalStatus: '',
         phone: '', email: '', emergencyContactName: '', emergencyContactPhone: '',
@@ -92,10 +124,29 @@ const VisaForm = () => {
         clientZip: '', lcaTitle: '', lcaSalary: '', lcaCode: '', receiptNumber: '',
         startDate: '', endDate: ''
       })
+      
+      // Redirect to dashboard after 2 seconds
+      setTimeout(() => {
+        navigate('/profile')
+      }, 2000)
+      
     } catch (error) {
-      setMessage('❌ Error submitting application. Please try again.')
+      // Clear timeout on error
+      clearTimeout(timeoutId)
+      
+      let errorMessage = '❌ Error submitting application. '
+      if (error.response?.status === 422) {
+        errorMessage += 'Validation failed. Please check all fields.'
+      } else if (error.response?.status === 400) {
+        errorMessage += 'Bad request. Please check your data.'
+      } else {
+        errorMessage += 'Please try again.'
+      }
+      setMessage(errorMessage)
     } finally {
+      // Always reset loading and submit states
       setLoading(false)
+      setSubmitAttempted(false)
     }
   }
 
@@ -362,10 +413,17 @@ const VisaForm = () => {
 
         <button
           type="submit"
-          disabled={loading}
-          className="w-full bg-orange-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={loading || submitAttempted}
+          className="w-full bg-orange-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
         >
-          {loading ? 'Submitting...' : 'Submit Application'}
+          {loading ? (
+            <div className="flex items-center justify-center gap-2">
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              Submitting...
+            </div>
+          ) : (
+            'Submit Application'
+          )}
         </button>
       </form>
     </div>

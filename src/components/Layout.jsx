@@ -67,53 +67,42 @@ const Layout = () => {
   useEffect(() => {
     const handleProfileDataUpdate = (event) => {
       const profileData = event.detail
-      console.log('🔔 Profile data received in Layout:', profileData)
+
       
       if (profileData && profileData.length > 0) {
-        console.log('📊 Processing', profileData.length, 'users for notifications')
-        
         const validUsers = profileData.filter(u => {
-          console.log('👤 Checking user:', u.first_name, u.last_name)
-          console.log('   Status:', u.h1b_status)
-          console.log('   Start:', u.h1b_start_date)
-          console.log('   End:', u.h1b_end_date)
-          
           const status = (u.h1b_status || "").toLowerCase().trim()
-          console.log('   Normalized status:', status)
-          
-          if (status !== "active") {
-            console.log('   ❌ Not active')
-            return false
-          }
+          if (status !== "active") return false
 
           const start = u.h1b_start_date
           const end = u.h1b_end_date
 
           const hasStart = start && !isNaN(new Date(start).getTime())
           const hasEnd = end && !isNaN(new Date(end).getTime())
-          
-          console.log('   Valid start:', hasStart)
-          console.log('   Valid end:', hasEnd)
-          
-          const isValid = hasStart || hasEnd
-          console.log('   ✅ User valid:', isValid)
 
-          return isValid
+          return hasStart || hasEnd
         })
         
-        console.log('🎯 Final valid notification users:', validUsers.length)
+
         setNotificationUsers(validUsers)
       } else {
-        console.log('❌ No profile data received')
         setNotificationUsers([])
       }
     }
 
-    console.log('🎧 Layout listening for profileDataUpdated events')
+    const handleCustomerUpdate = () => {
+      // Trigger profile data refresh when customers are updated
+      window.dispatchEvent(new CustomEvent('refreshProfileData'))
+    }
+
     window.addEventListener('profileDataUpdated', handleProfileDataUpdate)
+    window.addEventListener('customerUpdated', handleCustomerUpdate)
+    window.addEventListener('customerCreated', handleCustomerUpdate)
     
     return () => {
       window.removeEventListener('profileDataUpdated', handleProfileDataUpdate)
+      window.removeEventListener('customerUpdated', handleCustomerUpdate)
+      window.removeEventListener('customerCreated', handleCustomerUpdate)
     }
   }, [])
 
@@ -244,7 +233,7 @@ const Layout = () => {
                     localStorage.removeItem('editingPersonIndex')
                   }
                   navigate(`/${item.id}`)
-                  console.log('navigating to', item.id)
+
                   if (isMobile) setSidebarOpen(false)
                 }}
                 className={`cursor-pointer transition-all duration-300 flex items-center gap-4 font-medium group
